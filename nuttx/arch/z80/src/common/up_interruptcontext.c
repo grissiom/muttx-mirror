@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/z80/src/common/up_interruptcontext.c
+ * common/up_interruptcontext.c
  *
  *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -38,13 +38,9 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
 #include <sys/types.h>
-
 #include <nuttx/arch.h>
 #include <nuttx/irq.h>
-
-#include "chip/switch.h"
 #include "up_internal.h"
 
 /****************************************************************************
@@ -68,5 +64,5 @@
 
 boolean up_interrupt_context(void)
 {
-   return IN_INTERRUPT();
+   return current_regs != NULL;
 }

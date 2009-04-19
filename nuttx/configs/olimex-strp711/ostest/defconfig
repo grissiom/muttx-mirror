@@ -1,7 +1,7 @@
 ############################################################################
 # configs/olimes-strp711/ostest/defconfig
 #
-#   Copyright (C) 2008, 2009 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,15 +46,8 @@
 #   the board that supports the particular chip or SoC.
 # CONFIG_ENDIAN_BIG - define if big endian (default is little endian)
 # CONFIG_ARCH_BOARD_name - for use in C code
-# CONFIG_ARCH_NOINTC - define if the architecture does not
-#   support an interrupt controller or otherwise cannot support
-#   APIs like up_enable_irq() and up_disable_irq().
-# CONFIG_ARCH_IRQPRIO
-#   Define if the architecture suports prioritizaton of interrupts
-#   and the up_prioritize_irq() API.
 # CONFIG_BOARD_LOOPSPERMSEC - for delay loops
 # CONFIG_ARCH_LEDS - Use LEDs to show state. Unique to Olimex STR-P711
-# CONFIG_ARCH_BUTTONS - Support reading buttons. Unique to Olimex STR-P711
 # CONFIG_DRAM_SIZE - Describes the internal DRAM.
 # CONFIG_DRAM_START - The start address of internal DRAM
 # CONFIG_ARCH_INTERRUPTSTACK - This architecture supports an interrupt
@@ -68,75 +61,13 @@ CONFIG_ARCH_CHIP=str71x
 CONFIG_ARCH_STR71X=y
 CONFIG_ARCH_BOARD=olimex-strp711
 CONFIG_ARCH_BOARD_OLIMEX_STRP711=y
-CONFIG_ARCH_NOINTC=n
-CONFIG_ARCH_IRQPRIO=y
 CONFIG_BOARD_LOOPSPERMSEC=3270
 CONFIG_ARCH_LEDS=y
-CONFIG_ARCH_BUTTONS=y
-CONFIG_DRAM_SIZE=0x00010000
-CONFIG_DRAM_START=0x20000000
+CONFIG_DRAM_SIZE=0x00008000
+CONFIG_DRAM_START=0x40000000
 CONFIG_DRAM_END=(CONFIG_DRAM_START+CONFIG_DRAM_SIZE)
 CONFIG_ARCH_INTERRUPTSTACK=0
 CONFIG_ARCH_STACKDUMP=y
-
-#
-# STR71x specific boot/build settings
-#
-# CONFIG_STR71X_I2C0, CONFIG_STR71X_I2C1, CONFIG_STR71X_UART0, CONFIG_STR71X_UART1,
-# CONFIG_STR71X_UART2, CONFIG_STR71X_UART3, CONFIG_STR71X_USB, CONFIG_STR71X_CAN,
-# CONFIG_STR71X_BSPI0, CONFIG_STR71X_BSPI1, CONFIG_STR71X_HDLC, CONFIG_STR71X_XTI, 
-# CONFIG_STR71X_GPIO0, CONFIG_STR71X_GPIO1, CONFIG_STR71X_GPIO2, CONFIG_STR71X_ADC12, 
-# CONFIG_STR71X_CKOUT, CONFIG_STR71X_TIM1, CONFIG_STR71X_TIM2, CONFIG_STR71X_TIM3, and
-# CONFIG_STR71X_RTC
-#   Select peripherals to initialize (Timer0 and EIC are always initialized)
-# CONFIG_STR71X_BANK0, CONFIG_STR71X_BANK1, CONFIG_STR71X_BANK2, and CONFIG_STR71X_BANK3
-#   Enable initialize of external memory banks 0-3.
-# CONFIG_STR71X_BANK0_SIZE, CONFIG_STR71X_BANK1_SIZE, CONFIG_STR71X_BANK2_SIZE, and
-# CONFIG_STR71X_BANK3_SIZE
-#   If a particular external memory bank is configured, then its width must be provided.
-#   8 and 16 (bits) are the only valid options.
-# CONFIG_STR71X_BANK0_WAITSTATES, CONFIG_STR71X_BANK1_WAITSTATES,
-# CONFIG_STR71X_BANK2_WAITSTATES, and CONFIG_STR71X_BANK3_WAITSTATES
-#   If a particular external memory bank is configured, then the number of waistates
-#   for the bank must also be provided.  Valid options are {0, .., 15}
-# CONFIG_STR71X_BIGEXTMEM
-#   The default is to provide 20 bits of address for all external memory regions.  If
-#   any memory region is larger than 1Mb, then this option should be selected.  In this
-#   case, 24 bits of addressing will be used
-CONFIG_STR71X_I2C0=n
-CONFIG_STR71X_I2C1=n
-CONFIG_STR71X_UART0=y
-CONFIG_STR71X_UART1=y
-CONFIG_STR71X_UART2=n
-CONFIG_STR71X_UART3=n
-CONFIG_STR71X_USB=n
-CONFIG_STR71X_CAN=n
-CONFIG_STR71X_BSPI0=n
-CONFIG_STR71X_BSPI1=n
-CONFIG_STR71X_HDLC=n
-CONFIG_STR71X_XTI=n
-CONFIG_STR71X_GPIO0=y
-CONFIG_STR71X_GPIO1=y
-CONFIG_STR71X_GPIO2=n
-CONFIG_STR71X_ADC12=n
-CONFIG_STR71X_CKOUT=n
-CONFIG_STR71X_TIM1=n
-CONFIG_STR71X_TIM2=n
-CONFIG_STR71X_TIM3=n
-CONFIG_STR71X_RTC=n
-CONFIG_STR71X_BANK0=n
-CONFIG_STR71X_BANK0_SIZE=16
-CONFIG_STR71X_BANK0_WAITSTATES=0
-CONFIG_STR71X_BANK1=n
-CONFIG_STR71X_BANK0_SIZE=16
-CONFIG_STR71X_BANK1_WAITSTATES=0
-CONFIG_STR71X_BANK2=n
-CONFIG_STR71X_BANK0_SIZE=16
-CONFIG_STR71X_BANK3_WAITSTATES=0
-CONFIG_STR71X_BANK3=n
-CONFIG_STR71X_BANK0_SIZE=16
-CONFIG_STR71X_BANK2_WAITSTATES=0
-CONFIG_STR71X_BIGEXTMEM=n
 
 #
 # STR71x specific device driver settings
@@ -154,32 +85,18 @@ CONFIG_STR71X_BIGEXTMEM=n
 #
 CONFIG_UART0_SERIAL_CONSOLE=y
 CONFIG_UART1_SERIAL_CONSOLE=n
-CONFIG_UART2_SERIAL_CONSOLE=n
-CONFIG_UART3_SERIAL_CONSOLE=n
 CONFIG_UART0_TXBUFSIZE=256
 CONFIG_UART1_TXBUFSIZE=256
-CONFIG_UART2_TXBUFSIZE=256
-CONFIG_UART3_TXBUFSIZE=256
 CONFIG_UART0_RXBUFSIZE=256
 CONFIG_UART1_RXBUFSIZE=256
-CONFIG_UART2_RXBUFSIZE=256
-CONFIG_UART3_RXBUFSIZE=256
 CONFIG_UART0_BAUD=38400
 CONFIG_UART1_BAUD=38400
-CONFIG_UART2_BAUD=38400
-CONFIG_UART3_BAUD=38400
 CONFIG_UART0_BITS=8
 CONFIG_UART1_BITS=8
-CONFIG_UART2_BITS=8
-CONFIG_UART3_BITS=8
 CONFIG_UART0_PARITY=0
 CONFIG_UART1_PARITY=0
-CONFIG_UART2_PARITY=0
-CONFIG_UART3_PARITY=0
 CONFIG_UART0_2STOP=0
 CONFIG_UART1_2STOP=0
-CONFIG_UART2_2STOP=0
-CONFIG_UART3_2STOP=0
 
 #
 # General build options
@@ -232,10 +149,6 @@ CONFIG_HAVE_LIBM=n
 #   provides /dev/console.  Enables stdout, stderr, stdin.
 # CONFIG_DEV_LOWCONSOLE - Use the simple, low-level serial console
 #   driver (minimul support)
-# CONFIG_MUTEX_TYPES: Set to enable support for recursive and
-#   errorcheck mutexes. Enables pthread_mutexattr_settype().
-# CONFIG_PRIORITY_INHERITANCE : Set to enable support for priority
-#   inheritance on mutexes and semaphores. 
 #
 CONFIG_EXAMPLE=ostest
 CONFIG_DEBUG=n
@@ -251,8 +164,6 @@ CONFIG_START_DAY=1
 CONFIG_JULIAN_TIME=n
 CONFIG_DEV_CONSOLE=y
 CONFIG_DEV_LOWCONSOLE=y
-CONFIG_MUTEX_TYPES=n
-CONFIG_PRIORITY_INHERITANCE=n
 
 #
 # The following can be used to disable categories of
@@ -276,7 +187,6 @@ CONFIG_DISABLE_SIGNALS=n
 CONFIG_DISABLE_MQUEUE=n
 CONFIG_DISABLE_MOUNTPOINT=y
 CONFIG_DISABLE_ENVIRON=y
-CONFIG_DISABLE_POLL=y
 
 #
 # Misc libc settings
@@ -384,8 +294,6 @@ CONFIG_MMCSD_READONLY=n
 # CONFIG_NET_TCP_CONNS - Maximum number of TCP connections (all tasks)
 # CONFIG_NET_TCP_READAHEAD_BUFSIZE - Size of TCP read-ahead buffers
 # CONFIG_NET_NTCP_READAHEAD_BUFFERS - Number of TCP read-ahead buffers (may be zero)
-# CONFIG_NET_TCPBACKLOG - Incoming connections pend in a backlog until
-#   accept() is called. The size of the backlog is selected when listen() is called.
 # CONFIG_NET_MAX_LISTENPORTS - Maximum number of listening TCP ports (all tasks)
 # CONFIG_NET_UDP - UDP support on or off
 # CONFIG_NET_UDP_CHECKSUMS - UDP checksums on or off
@@ -620,31 +528,21 @@ CONFIG_EXAMPLES_NSH_MMCSDMINOR=0
 #
 # Stack and heap information
 #
-# CONFIG_BOOT_RUNFROMFLASH - Some configurations support XIP
-#   operation from FLASH but must copy initialized .data sections to RAM.
-# CONFIG_BOOT_COPYTORAM -  Some configurations boot in FLASH
-#   but copy themselves entirely into RAM for better performance.
+# CONFIG_BOOT_FROM_FLASH - Some configurations support XIP
+#   operation from FLASH.
 # CONFIG_CUSTOM_STACK - The up_ implementation will handle
 #   all stack operations outside of the nuttx model.
 # CONFIG_STACK_POINTER - The initial stack pointer (arm7tdmi only)
-# CONFIG_IDLETHREAD_STACKSIZE - The size of the initial stack.
-#  This is the thread that (1) performs the inital boot of the system up
-#  to the point where user_start() is spawned, and (2) there after is the
-#  IDLE thread that executes only when there is no other thread ready to
-#  run.
-# CONFIG_USERMAIN_STACKSIZE - The size of the stack to allocate
-#  for the main user thread that begins at the user_start() entry point.
+# CONFIG_PROC_STACK_SIZE - The size of the initial stack
 # CONFIG_PTHREAD_STACK_MIN - Minimum pthread stack size
 # CONFIG_PTHREAD_STACK_DEFAULT - Default pthread stack size
 # CONFIG_HEAP_BASE - The beginning of the heap
 # CONFIG_HEAP_SIZE - The size of the heap
 #
-CONFIG_BOOT_RUNFROMFLASH=y
-CONFIG_BOOT_COPYTORAM=n
+CONFIG_BOOT_FROM_FLASH=y
 CONFIG_CUSTOM_STACK=n
 CONFIG_STACK_POINTER=
-CONFIG_IDLETHREAD_STACKSIZE=2048
-CONFIG_USERMAIN_STACKSIZE=2048
+CONFIG_PROC_STACK_SIZE=2048
 CONFIG_PTHREAD_STACK_MIN=256
 CONFIG_PTHREAD_STACK_DEFAULT=2048
 CONFIG_HEAP_BASE=

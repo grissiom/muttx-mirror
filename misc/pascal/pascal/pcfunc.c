@@ -42,7 +42,7 @@
 #include <math.h>
 
 #include "keywords.h"
-#include "pasdefs.h"
+#include "pdefs.h"
 #include "ptdefs.h"
 #include "podefs.h"
 #include "pfdefs.h"

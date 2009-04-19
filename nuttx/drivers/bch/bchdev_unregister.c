@@ -111,9 +111,7 @@ int bchdev_unregister(const char *chardev)
       return ret;
     }
 
-  /* Get a reference to the internal data structure.  On success, we
-   * will hold a reference count on the state structure.
-   */
+  /* Get a reference to the internal data structure */
 
   ret = ioctl(fd, DIOC_GETPRIV, (unsigned long)&bch);
   (void)close(fd);
@@ -124,14 +122,11 @@ int bchdev_unregister(const char *chardev)
       return -errno;
     }
 
-  /* Lock out context switches.  If there are no other references
-   * and no context switches, then we can assume that we can safely
-   * teardown the driver.
-   */
+  /* Lock out context switches */
 
   sched_lock();
 
-  /* Check if the internal structure is non-busy (we hold one reference). */
+  /* Check if the internal structure is non-busy (we hold one reference) */
 
   if (bch->refs > 1)
     {
@@ -139,10 +134,7 @@ int bchdev_unregister(const char *chardev)
       goto errout_with_lock;
     }
 
-  /* Unregister the driver (this cannot suspend or we lose our non-preemptive
-   * state!).  Once the driver is successfully unregistered, we can assume
-   * we have exclusive access to the state instance.
-   */
+  /* Unregister the driver (this cannot suspend) */
 
   ret = unregister_driver(chardev);
   if (ret < 0)
@@ -157,7 +149,7 @@ int bchdev_unregister(const char *chardev)
   return bchlib_teardown(bch);
 
 errout_with_lock:
-  bch->refs--;
   sched_unlock();
+  bchlib_decref(bch);
   return ret;
 }

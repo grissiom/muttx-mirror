@@ -1,7 +1,7 @@
 /****************************************************************************
- * examples/poll/poll_internal.h
+ * examples/poll/poll.h
  *
- *   Copyright (C) 2008, 2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,61 +50,26 @@
  * Definitions
  ****************************************************************************/
 
+#define FIFO_PATH "/dev/fifo0"
+
+#define LISTENER_DELAY 2000 /* 2 seconds */
+#define WRITER_DELAY   4    /* 4 seconds */
+
 #ifdef CONFIG_DISABLE_POLL
 #  error "The polling API is disabled"
 #endif
 
-/* Here are all of the configuration settings that must be met to have TCP/IP
- * poll/select support.  This kind of looks like overkill.
- *
- * CONFIG_NET                        - Network support must be enabled
- * CONFIG_NSOCKET_DESCRIPTORS        - Socket descriptors must be allocated
- * CONFIG_NET_TCP                    - Only support on TCP (because read-ahead
- *                                     ibuffering s not yet support for UDP)
- * CONFIG_NET_NTCP_READAHEAD_BUFFERS - TCP/IP read-ahead buffering must be enabled
- */
-
-#if defined(CONFIG_NET) && CONFIG_NSOCKET_DESCRIPTORS > 0 && \
-    defined(CONFIG_NET_TCP) && CONFIG_NET_NTCP_READAHEAD_BUFFERS > 0
-#  define HAVE_NETPOLL 1
-#else
-#  undef HAVE_NETPOLL
-#endif
-
 /* If debug is enabled, then use lib_rawprintf so that OS debug output and
  * the test output are synchronized.
- *
- * These macros will differ depending upon if the toolchain supports
- * macros with a variable number of arguments or not.
  */
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-# ifdef CONFIG_DEBUG
-#   define message(...) lib_rawprintf(__VA_ARGS__)
-#   define msgflush()
-# else
-#   define message(...) printf(__VA_ARGS__)
-#   define msgflush()   fflush(stdout)
-# endif
+#ifdef CONFIG_DEBUG
+#  define message(...) lib_rawprintf(__VA_ARGS__)
+#  define msgflush()
 #else
-# ifdef CONFIG_DEBUG
-#   define message      lib_rawprintf
-#   define msgflush()
-# else
-#   define message      printf
-#   define msgflush()   fflush(stdout)
-# endif
+#  define message(...) printf(__VA_ARGS__)
+#  define msgflush()   fflush(stdout)
 #endif
-
-#define FIFO_PATH1 "/dev/fifo0"
-#define FIFO_PATH2 "/dev/fifo1"
-
-#define POLL_LISTENER_DELAY   2000   /* 2 seconds */
-#define SELECT_LISTENER_DELAY 4      /* 4 seconds */
-#define NET_LISTENER_DELAY    3      /* 3 seconds */
-#define WRITER_DELAY          6      /* 6 seconds */
-
-#define LISTENER_PORT         5471
 
 /****************************************************************************
  * Public Types
@@ -119,10 +84,5 @@
  ****************************************************************************/
 
 extern void *poll_listener(pthread_addr_t pvarg);
-extern void *select_listener(pthread_addr_t pvarg);
 
-#ifdef HAVE_NETPOLL
-extern void *net_listener(pthread_addr_t pvarg);
-extern void *net_reader(pthread_addr_t pvarg);
-#endif
 #endif /* __EXAMPLES_PIPE_PIPE_H */

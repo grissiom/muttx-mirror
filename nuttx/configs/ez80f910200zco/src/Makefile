@@ -43,14 +43,7 @@ CFLAGS		= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(INCLUDES) $(ARCH
 
 ASRCS		= 
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
-
-CSRCS		= ez80_lowinit.c
-ifeq ($(CONFIG_ARCH_LEDS),y)
-CSRCS		+= ez80_leds.c
-endif
-ifeq ($(CONFIG_ARCH_BUTTONS),y)
-CSRCS		+= ez80_buttons.c
-endif
+CSRCS		= ez80_lowinit.c ez80_leds.c
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
 SRCS		= $(ASRCS) $(CSRCS)
@@ -68,7 +61,7 @@ $(AOBJS): %$(OBJEXT): %$(ASMEXT)
 	$(call ASSEMBLE, $<, $@)
 
 $(COBJS) $(LINKOBJS): %$(OBJEXT): %.c
-	$(call COMPILE, $<, $@)
+	$(call COMPILE, `cygpath -w $<`, $@)
 
 libboard$(LIBEXT): $(OBJS)
 	@( for obj in $(OBJS) ; do \

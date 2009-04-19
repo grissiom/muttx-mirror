@@ -34,6 +34,10 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * Compilation Switches
+ ****************************************************************************/
+
+/****************************************************************************
  * Included Files
  ****************************************************************************/
 
@@ -56,7 +60,7 @@
 
 #include "tftpc_internal.h"
 
-#if defined(CONFIG_NET) && defined(CONFIG_NET_UDP) && CONFIG_NFILE_DESCRIPTORS > 0
+#if defined(CONFIG_NET) && defined(CONFIG_NET_UDP)
 
 /****************************************************************************
  * Definitions
@@ -65,6 +69,15 @@
 /****************************************************************************
  * Public Data
  ****************************************************************************/
+
+#if CONFIG_DEBUG
+const char g_tftpcallfailed[]     = "%s failed: %d\n";
+const char g_tftpcalltimedout[]   = "%s timed out\n";
+const char g_tftpnomemory[]       = "%s memory allocation failure\n";
+const char g_tftptoomanyretries[] = "Retry limit exceeded\n";
+const char g_tftpaddress[]        = "%s invalid address\n";
+const char g_tftpport[]           = "%s invalid port\n";
+#endif
 
 /****************************************************************************
  * Private Functions
@@ -101,28 +114,29 @@ int tftp_sockinit(struct sockaddr_in *server, in_addr_t addr)
   /* Create the UDP socket */
 
   sd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-  if (sd < 0)
+  if (sd >= 0)
     {
-      ndbg("socket failed: %d\n", errno);
-      return ERROR;
+      ndbg(g_tftpcallfailed, "socket", errno);
     }
-
-  /* Set the recvfrom timeout */
-
-  timeo.tv_sec  = CONFIG_NETUTILS_TFTP_TIMEOUT / 10;
-  timeo.tv_usec = (CONFIG_NETUTILS_TFTP_TIMEOUT % 10) * 100000;
-  ret = setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeo, sizeof(struct timeval));
-  if (ret < 0)
+  else
     {
-      ndbg("setsockopt failed: %d\n", errno);
+      /* Set the recvfrom timeout */
+
+      timeo.tv_sec  = CONFIG_NETUTILS_TFTP_TIMEOUT / 10;
+      timeo.tv_usec = (CONFIG_NETUTILS_TFTP_TIMEOUT % 10) * 100000;
+      ret = setsockopt(sd, SOL_SOCKET, SO_RCVTIMEO, &timeo, sizeof(struct timeval));
+      if (ret < 0)
+        {
+          ndbg(g_tftpcallfailed, "setsockopt", errno);
+        }
+
+      /* Initialize the server address structure */
+
+      memset(server, 0, sizeof(struct sockaddr_in));
+      server->sin_family      = AF_INET;
+      server->sin_addr.s_addr = addr;
+      server->sin_port        = HTONS(CONFIG_NETUTILS_TFTP_PORT);
     }
-
-  /* Initialize the server address structure */
-
-  memset(server, 0, sizeof(struct sockaddr_in));
-  server->sin_family      = AF_INET;
-  server->sin_addr.s_addr = addr;
-  server->sin_port        = HTONS(CONFIG_NETUTILS_TFTP_PORT);
   return sd;
 }
 
@@ -137,9 +151,6 @@ int tftp_sockinit(struct sockaddr_in *server, in_addr_t addr)
  *     1 byte:  0
  *     N bytes: mode
  *     1 byte:  0
- *
- * Return
- *  Then number of bytes in the request packet (never fails)
  *
  ****************************************************************************/
 
@@ -206,7 +217,7 @@ int tftp_mkerrpacket(ubyte *buffer, uint16 errorcode, const char *errormsg)
  *
  ****************************************************************************/
 
-#if defined(CONFIG_DEBUG) && defined(CONFIG_DEBUG_NET)
+#ifdef CONFIG_DEBUG
 int tftp_parseerrpacket(const ubyte *buffer)
 {
   uint16 opcode       = (uint16)buffer[0] << 8 | (uint16)buffer[1];
@@ -241,12 +252,6 @@ ssize_t tftp_recvfrom(int sd, void *buf, size_t len, struct sockaddr_in *from)
 
   for (;;)
     {
-      /* For debugging, it is helpful to start with a clean buffer */
-
-#if defined(CONFIG_DEBUG_VERBOSE) && defined(CONFIG_DEBUG_NET)
-      memset(buf, 0, len);
-#endif
-
       /* Receive the packet */
 
       addrlen = sizeof(struct sockaddr_in);
@@ -260,7 +265,7 @@ ssize_t tftp_recvfrom(int sd, void *buf, size_t len, struct sockaddr_in *from)
 
           if (errno == EAGAIN)
             {
-              ndbg("recvfrom timed out\n");
+              ndbg(g_tftpcalltimedout, "recvfrom");
               return ERROR;
             }
 
@@ -268,7 +273,7 @@ ssize_t tftp_recvfrom(int sd, void *buf, size_t len, struct sockaddr_in *from)
 
           else if (errno != EINTR)
             {
-              ndbg("recvfrom failed: %d\n", errno);
+              ndbg(g_tftpcallfailed, "recvfrom", errno);
               return ERROR;
             }
         }
@@ -312,7 +317,7 @@ ssize_t tftp_sendto(int sd, const void *buf, size_t len, struct sockaddr_in *to)
 
           if (errno != EINTR)
             {
-              ndbg("sendto failed: %d\n", errno);
+              ndbg(g_tftpcallfailed, "sendto", errno);
               return ERROR;
             }
         }
@@ -326,52 +331,4 @@ ssize_t tftp_sendto(int sd, const void *buf, size_t len, struct sockaddr_in *to)
     }
 }
 
-/****************************************************************************
- * Name: tftp_sendto
- *
- * Description:
- *   Dump a buffer of data
- *
- ****************************************************************************/
-
-#ifdef CONFIG_NETUTILS_TFTP_DUMPBUFFERS
-void tftp_dumpbuffer(const char *msg, ubyte *buffer, int nbytes)
-{
-#ifdef CONFIG_DEBUG
-  char line[128];
-  int ch;
-  int i;
-  int j;
-
-  dbg("%s:\n", msg);
-  for (i = 0; i < nbytes; i += 16)
-    {
-      sprintf(line, "%04x: ", i);
-
-      for ( j = 0; j < 16; j++)
-        {
-          if (i + j < nbytes)
-            {
-              sprintf(&line[strlen(line)], "%02x ", buffer[i+j] );
-            }
-          else
-            {
-              strcpy(&line[strlen(line)], "   ");
-            }
-        }
-
-      for ( j = 0; j < 16; j++)
-        {
-          if (i + j < nbytes)
-            {
-              ch = buffer[i+j];
-              sprintf(&line[strlen(line)], "%c", ch >= 0x20 && ch <= 0x7e ? ch : '.');
-            }
-        }
-      dbg("%s\n", line);
-    }
-#endif
-}
-#endif
-
-#endif /* CONFIG_NET && CONFIG_NET_UDP && CONFIG_NFILE_DESCRIPTORS */
+#endif /* CONFIG_NET && CONFIG_NET_UDP */

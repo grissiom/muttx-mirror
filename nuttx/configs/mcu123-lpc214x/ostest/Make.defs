@@ -1,5 +1,5 @@
 ##############################################################################
-# configs/mcu123-lpc214x/ostest/Make.defs
+# configs/mcu123-lpc214x/Make.defs
 #
 #   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -35,18 +35,6 @@
 
 include ${TOPDIR}/.config
 
-CROSSDEV		= arm-elf-
-CC			= $(CROSSDEV)gcc
-CPP			= $(CROSSDEV)gcc -E
-LD			= $(CROSSDEV)ld
-AR			= $(CROSSDEV)ar rcs
-NM			= $(CROSSDEV)nm
-OBJCOPY			= $(CROSSDEV)objcopy
-OBJDUMP			= $(CROSSDEV)objdump
-
-ARCHCCVERSION		= ${shell $(CC) -v 2>&1 | sed -n '/^gcc version/p' | sed -e 's/^gcc version \([0-9\.]\)/\1/g' -e 's/[-\ ].*//g' -e '1q'}
-ARCHCCMAJOR		= ${shell echo $(ARCHCCVERSION) | cut -d'.' -f1}
-
 ifeq ("${CONFIG_DEBUG}","y")
   ARCHOPTIMIZATION	= -g
 else
@@ -54,20 +42,23 @@ else
 			  -fomit-frame-pointer
 endif
 
-ifeq ($(ARCHCCMAJOR),4)
-  ARCHCPUFLAGS		= -mcpu=arm7tdmi -msoft-float -fno-builtin
-else
-  ARCHCPUFLAGS		= -mapcs-32 -mcpu=arm7tdmi -msoft-float -fno-builtin
-endif
+ARCHCPUFLAGS		= -mapcs-32 -mcpu=arm7tdmi -msoft-float -fno-builtin
 ARCHPICFLAGS		= -fpic
 ARCHWARNINGS		= -Wall -Wstrict-prototypes -Wshadow
 ARCHDEFINES		=
 ARCHINCLUDES		= -I. -isystem $(TOPDIR)/include
-ARCHSCRIPT		= -T$(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/ostest/ld.script
+ARCHSCRIPT		= -T$(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/ld.script
+
+CROSSDEV		= arm-elf-
+CC			= $(CROSSDEV)gcc
+LD			= $(CROSSDEV)ld
+AR			= $(CROSSDEV)ar rcs
+NM			= $(CROSSDEV)nm
+OBJCOPY			= $(CROSSDEV)objcopy
+OBJDUMP			= $(CROSSDEV)objdump
 
 CFLAGS			= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) \
 			  $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) -pipe
-CPPFLAGS		= $(ARCHINCLUDES) $(ARCHDEFINES)
 AFLAGS			= $(CFLAGS) -D__ASSEMBLY__
 
 OBJEXT			= .o
@@ -77,11 +68,6 @@ EXEEXT			=
 ifeq ("${CONFIG_DEBUG}","y")
   LDFLAGS		+= -g
 endif
-
-define PREPROCESS
-	@echo "CPP: $1->$2"
-	@$(CPP) $(CPPFLAGS) $1 -o $2
-endef
 
 define COMPILE
 	@echo "CC: $1"

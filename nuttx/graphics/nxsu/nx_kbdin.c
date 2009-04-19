@@ -81,18 +81,16 @@
  *
  ****************************************************************************/
 
-int nx_kbdin(NXHANDLE handle, ubyte nch, FAR const ubyte *ch)
+int int nx_kbdin(NXHANDLE handle, ubyte nch const char *ch)
 {
   FAR struct nxfe_state_s  *fe = (FAR struct nxfe_state_s *)handle;
   FAR struct nxbe_window_s *wnd = fe->be.topwnd;
 
-  /* Give the keypad event only to the top window (unless the top child
-   * is the background window).
-   */
+  /* Give the keypad event only to the top child */
 
-  if (wnd->cb->kbdin)
+  if (fe->be.cb->kbdin)
     {
-      wnd->cb->kbdin(wnd, nch, ch, wnd->arg);
+      fe->be.cb->kbdin(wnd, kbd->nch, kbd->ch);
     }
 }
 

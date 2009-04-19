@@ -1,7 +1,7 @@
-/****************************************************************************
- *  arch/arm/src/common/up_unblocktask.c
+/************************************************************
+ * common/up_unblocktask.c
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,11 +31,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Included Files
- ****************************************************************************/
+ ************************************************************/
 
 #include <nuttx/config.h>
 #include <sys/types.h>
@@ -43,26 +43,25 @@
 #include <debug.h>
 #include <nuttx/arch.h>
 #include "os_internal.h"
-#include "clock_internal.h"
 #include "up_internal.h"
 
-/****************************************************************************
+/************************************************************
  * Private Definitions
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Private Data
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+/************************************************************
+ * Private Funtions
+ ************************************************************/
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+/************************************************************
+ * Public Funtions
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Name: up_unblock_task
  *
  * Description:
@@ -76,7 +75,7 @@
  *     the ready-to-run list and, if it is the highest priority
  *     ready to run taks, executed.
  *
- ****************************************************************************/
+ ************************************************************/
 
 void up_unblock_task(_TCB *tcb)
 {
@@ -91,6 +90,8 @@ void up_unblock_task(_TCB *tcb)
     {
       _TCB *rtcb = (_TCB*)g_readytorun.head;
 
+      lldbg("Unblocking TCB=%p\n", tcb);
+
       /* Remove the task from the blocked task list */
 
       sched_removeblocked(tcb);
@@ -100,7 +101,7 @@ void up_unblock_task(_TCB *tcb)
        */
 
 #if CONFIG_RR_INTERVAL > 0
-      tcb->timeslice = CONFIG_RR_INTERVAL / MSEC_PER_TICK;
+      tcb->timeslice = CONFIG_RR_INTERVAL;
 #endif
 
       /* Add the task in the correct location in the prioritized
@@ -128,6 +129,7 @@ void up_unblock_task(_TCB *tcb)
                */
 
               rtcb = (_TCB*)g_readytorun.head;
+              lldbg("New Active Task TCB=%p\n", rtcb);
 
               /* Then switch contexts */
 
@@ -148,6 +150,7 @@ void up_unblock_task(_TCB *tcb)
                */
 
               rtcb = (_TCB*)g_readytorun.head;
+              lldbg("New Active Task TCB=%p\n", rtcb);
 
               /* Then switch contexts */
 

@@ -1,8 +1,7 @@
-/****************************************************************************
- * arch/arm/src/dm320/dm320_timerisr.c
- * arch/arm/src/chip/dm320_timerisr.c
+/************************************************************
+ * dm320/dm320_timerisr.c
  *
- *   Copyright (C) 2007, 2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -15,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -32,11 +31,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Included Files
- ****************************************************************************/
+ ************************************************************/
 
 #include <nuttx/config.h>
 #include <sys/types.h>
@@ -46,9 +45,9 @@
 #include "up_internal.h"
 #include "up_arch.h"
 
-/****************************************************************************
+/************************************************************
  * Definitions
- ****************************************************************************/
+ ************************************************************/
 
 /* DM320 Timers
  *
@@ -93,26 +92,26 @@
 #define DM320_TMR0_DIV   26999                  /* (see above) */
 #define DM320_TMR0_PRSCL 9                      /* (see above) */
 
-/****************************************************************************
+/************************************************************
  * Private Types
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Private Function Prototypes
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Global Functions
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Function:  up_timerisr
  *
  * Description:
- *   The timer ISR will perform a variety of services for various portions
- *   of the systems.
+ *   The timer ISR will perform a variety of services for
+ *   various portions of the systems.
  *
- ****************************************************************************/
+ ************************************************************/
 
 int up_timerisr(int irq, uint32 *regs)
 {
@@ -122,14 +121,14 @@ int up_timerisr(int irq, uint32 *regs)
    return 0;
 }
 
-/****************************************************************************
+/************************************************************
  * Function:  up_timerinit
  *
  * Description:
- *   This function is called during start-up to initialize the timer
- *   interrupt.
+ *   This function is called during start-up to initialize
+ *   the timer interrupt.
  *
- ****************************************************************************/
+ ************************************************************/
 
 void up_timerinit(void)
 {

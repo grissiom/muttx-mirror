@@ -55,7 +55,7 @@
 #endif
 
 #ifndef CONFIG_EXAMPLES_USBSTRG_DEVPATH1
-#  define CONFIG_EXAMPLES_USBSTRG_DEVPATH1 "/dev/mmcsd0"
+#  define CONFIG_EXAMPLES_USBSTRG_DEVPATH1 "/dev/mmcds0"
 #endif
 
 #if CONFIG_EXAMPLES_USBSTRG_NLUNS > 1
@@ -83,18 +83,14 @@
 #ifdef CONFIG_CPP_HAVE_VARARGS
 #  ifdef CONFIG_DEBUG
 #    define message(...) lib_lowprintf(__VA_ARGS__)
-#    define msgflush()
 #  else
 #    define message(...) printf(__VA_ARGS__)
-#    define msgflush() fflush(stdout)
 #  endif
 #else
 #  ifdef CONFIG_DEBUG
 #    define message lib_lowprintf
-#    define msgflush()
 #  else
 #    define message printf
-#    define msgflush() fflush(stdout)
 #  endif
 #endif
 

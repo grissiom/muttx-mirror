@@ -41,9 +41,8 @@
 
 #include <sys/types.h>
 #include <debug.h>
-#include <fixedmath.h>
 
-#include <nuttx/nxglib.h>
+#include <fixedmath.h>
 
 /****************************************************************************
  * Pre-Processor Definitions
@@ -76,14 +75,15 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nxgl_yuv2rgb
+ * Name: nxglib_yuv2rgb
  *
  * Description:
  *   Convert 8-bit RGB triplet to 8-bit YUV triplet
  *
+ *
  ****************************************************************************/
 
-void nxgl_yuv2rgb(ubyte y, ubyte u, ubyte v, ubyte *r, ubyte *g, ubyte *b)
+void nxglib_yuv2rgb(ubyte y, ubyte u, ubyte v, ubyte *r, ubyte *g, ubyte *b)
 {
   b16_t vm128 = itob16(v) - b16_128P0;
   b16_t um128 = itob16(u) - b16_128P0;

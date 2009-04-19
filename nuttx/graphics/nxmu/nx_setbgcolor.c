@@ -91,6 +91,7 @@ int nx_setbgcolor(NXHANDLE handle,
   FAR struct nxfe_conn_s *conn = (FAR struct nxfe_conn_s *)handle;
   struct nxsvrmsg_setbgcolor_s outmsg;
   int ret;
+  int i;
 
 #ifdef CONFIG_DEBUG
   if (!conn)
@@ -102,8 +103,12 @@ int nx_setbgcolor(NXHANDLE handle,
 
   /* Format the fill command */
 
-  outmsg.msgid = NX_SVRMSG_SETBGCOLOR;
-  nxgl_colorcopy(outmsg.color, color);
+  outmsg.msgid      = NX_SVRMSG_SETBGCOLOR;
+
+  for (i = 0; i < CONFIG_NX_NPLANES; i++)
+    {
+      outmsg.color[i] = color[i];
+    }
 
   /* Forward the fill command to the server */
 

@@ -41,18 +41,7 @@
  ************************************************************************************/
 
 #include "imx_memorymap.h"
-#include "imx_system.h"
-#include "imx_wdog.h"
-#include "imx_timer.h"
-#include "imx_rtc.h"
 #include "imx_uart.h"
-#include "imx_dma.h"
-#include "imx_usbd.h"
-#include "imx_i2c.h"
-#include "imx_cspi.h"
-#include "imx_gpio.h"
-#include "imx_eim.h"
-#include "imx_aitc.h"
 
 /************************************************************************************
  * Definitions

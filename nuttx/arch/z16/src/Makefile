@@ -36,106 +36,74 @@
 -include $(TOPDIR)/Make.defs
 -include chip/Make.defs
 
-COMPILER	= ${shell basename $(CC)}
-ARCHSRCDIR	= $(TOPDIR)/arch/$(CONFIG_ARCH)/src
-ifeq ($(COMPILER),zneocc.exe)
-WARCHSRCDIR	:= ${shell cygpath -w $(ARCHSRCDIR)}
-USRINCLUDES	= -usrinc:'.;$(WTOPDIR)\sched;$(WARCHSRCDIR);$(WARCHSRCDIR)\common'
-else
-WARCHSRCDIR	= $(ARCHSRCDIR)
-USRINCLUDES	= -I$(TOPDIR)/sched -I$(ARCHSRCDIR) -I$(ARCHSRCDIR)/common
-endif
-INCLUDES	= $(ARCHSTDINCLUDES) $(USRINCLUDES)
-CFLAGS		= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(INCLUDES) $(ARCHDEFINES)
-CPPFLAGS	+= -I$(ARCHSRCDIR)
-ifeq ($(COMPILER),zneocc.exe)
-LDFLAGS 	= @"${shell cygpath -w $(ARCHSRCDIR)/nuttx.linkcmd}"
-endif
+MKDEP 		= $(TOPDIR)/tools/mkdeps.sh
+ARCH_SRCDIR	= $(TOPDIR)/arch/$(CONFIG_ARCH)/src
+CFLAGS		+= -I$(ARCH_SRCDIR)/chip -I$(ARCH_SRCDIR)/common -I$(TOPDIR)/sched
 
-HEAD_ASRC	= $(HEAD_SSRC:.S=$(ASMEXT))
-HEAD_AOBJ	= $(HEAD_SSRC:.S=$(OBJEXT))
+HEAD_AOBJ	= $(HEAD_ASRC:.S=$(OBJEXT))
 
-SSRCS		= $(CHIP_SSRCS) $(CMN_SSRCS)
-ASRCS		= $(SSRCS:.S=$(ASMEXT))
-AOBJS		= $(SSRCS:.S=$(OBJEXT))
+ASRCS		= $(CHIP_ASRCS) $(CMN_ASRCS)
+AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
 CSRCS		= $(CHIP_CSRCS) $(CMN_CSRCS)
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
-DEPSRCS 	= $(SSRCS) $(CSRCS)
+SRCS		= $(ASRCS) $(CSRCS)
 OBJS		= $(AOBJS) $(COBJS)
 
+LDFLAGS		= $(ARCHSCRIPT)
+EXTRA_LIBS	=
+
+LINKLIBS	=
+LDPATHES	= $(addprefix -L$(TOPDIR)/,$(dir $(LINKLIBS)))
+LDLIBS		= $(patsubst lib%,-l%,$(basename $(notdir $(LINKLIBS))))
+
 BOARDDIR	= $(TOPDIR)/arch/$(CONFIG_ARCH)/src/board
+
+LIBGCC		= ${shell $(CC) -print-libgcc-file-name}
 
 VPATH		= chip:common
 
 all: $(HEAD_OBJ) libarch$(LIBEXT)
 
-ifeq ($(COMPILER),zneocc.exe)
-$(ASRCS) $(HEAD_ASRC): %$(ASMEXT): %.S
-	@$(CPP) $(CPPFLAGS) $< -o $@.tmp
-	@cat $@.tmp | sed -e "s/^#/;/g" > $@
-	@rm $@.tmp
-
-$(AOBJS) $(HEAD_AOBJ): %$(OBJEXT): %$(ASMEXT)
-	$(call ASSEMBLE, $<, $@)
-else
-$(OBJS) $(HEAD_AOBJ): %$(OBJEXT): %.S
-	$(call ASSEMBLE, $<, $@)
-endif
+$(AOBJS) $(HEAD_AOBJ): %$(OBJEXT): %.S
+	$(CC) -c $(CFLAGS) -D__ASSEMBLY__ $< -o $@
 
 $(COBJS): %$(OBJEXT): %.c
-	$(call COMPILE, $<, $@)
+	$(CC) -c $(CFLAGS) $< -o $@
 
 libarch$(LIBEXT): $(OBJS)
 	@( for obj in $(OBJS) ; do \
-		$(call ARCHIVE, $@, $${obj}); \
+		$(AR) $@ $${obj} || \
+			{ echo "$(AR) $@ $obj FAILED!" ; exit 1 ; } ; \
 	done ; )
 
 board/libboard$(LIBEXT):
-	@$(MAKE) -C board TOPDIR="$(TOPDIR)" libboard$(LIBEXT)
+	$(MAKE) -C board TOPDIR=$(TOPDIR) libboard$(LIBEXT)
 
-ifeq ($(COMPILER),zneocc.exe)
-nuttx.linkcmd: $(LINKCMDTEMPLATE)
-	@cp -f $(LINKCMDTEMPLATE) nuttx.linkcmd
-	@echo "\"${shell cygpath -w $(TOPDIR)/nuttx}\"= \\" >>nuttx.linkcmd
-	@echo "  \"${shell cygpath -w $(ARCHSRCDIR)/$(HEAD_AOBJ)}\", \\" >>nuttx.linkcmd
-	@( for lib in $(LINKLIBS); do \
-		echo "  \"`cygpath -w $(TOPDIR)/$${lib}`\", \\" >>nuttx.linkcmd; \
-	done ; )
-	@echo "  \"${shell cygpath -w $(ARCHSRCDIR)/board/libboard$(LIBEXT)}\", \\"  >>nuttx.linkcmd
-	@echo "  \"${shell cygpath -w $(ZDSSTDLIBDIR)/chelpld$(LIBEXT)}\", \\"  >>nuttx.linkcmd
-	@echo "  \"${shell cygpath -w $(ZDSSTDLIBDIR)/fpld$(LIBEXT)}\""  >>nuttx.linkcmd
-else
-nuttx.linkcmd:
-endif
+nuttx: $(HEAD_AOBJ) board/libboard$(LIBEXT)
+	$(LD) --entry=__start $(LDFLAGS) $(LDPATHES) -L$(BOARDDIR) -o $(TOPDIR)/$@ $(HEAD_AOBJ) \
+		--start-group $(LDLIBS) -lboard --end-group $(EXTRA_LIBS) $(LIBGCC) 
 
-nuttx$(EXEEXT): $(HEAD_AOBJ) board/libboard$(LIBEXT) nuttx.linkcmd
-	@echo "LD:  nuttx.hex"
-	@$(LD) $(LDFLAGS)
-
-.depend: Makefile chip/Make.defs $(DEPSRCS)
+.depend: Makefile chip/Make.defs $(SRCS)
 	@if [ -e board/Makefile ]; then \
-		$(MAKE) -C board TOPDIR="$(TOPDIR)" depend ; \
+		$(MAKE) -C board TOPDIR=$(TOPDIR) depend ; \
 	fi
-	@$(MKDEP) --dep-path chip --dep-path common $(CC) -- $(CFLAGS) -- $(DEPSRCS) >Make.dep
+	$(MKDEP) --dep-path chip --dep-path common $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
 depend: .depend
 
 clean:
 	@if [ -e board/Makefile ]; then \
-		$(MAKE) -C board TOPDIR="$(TOPDIR)" clean ; \
+		$(MAKE) -C board TOPDIR=$(TOPDIR) clean ; \
 	fi
-	@rm -f libarch$(LIBEXT) *~ .*.swp
-ifeq ($(COMPILER),zneocc.exe)
-	@rm -f nuttx.linkcmd *.asm *.tmp *.map
-endif
-	$(call CLEAN)
+	@rm -f libarch$(LIBEXT) *~
+	@if [ ! -z "$(OBJEXT)" ]; then rm -f *$(OBJEXT); fi
 
 distclean: clean
 	@if [ -e board/Makefile ]; then \
-		$(MAKE) -C board TOPDIR="$(TOPDIR)" distclean ; \
+		$(MAKE) -C board TOPDIR=$(TOPDIR) distclean ; \
 	fi
 	@rm -f Make.dep .depend
 

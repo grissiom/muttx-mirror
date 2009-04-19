@@ -1,5 +1,5 @@
 /****************************************************************************
- * board/z80_serial.c
+ * z80/z80_serial.c
  *
  *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -41,6 +41,7 @@
 
 #include <sys/types.h>
 #include <unistd.h>
+#include <semaphore.h>
 #include <string.h>
 #include <errno.h>
 #include <debug.h>
@@ -54,7 +55,7 @@
 #include "os_internal.h"
 #include "up_internal.h"
 
-#ifdef CONFIG_USE_SERIALDRIVER
+#if CONFIG_NFILE_DESCRIPTORS > 0
 
 /****************************************************************************
  * Definitions
@@ -70,16 +71,15 @@
 
 static int     up_setup(struct uart_dev_s *dev);
 static void    up_shutdown(struct uart_dev_s *dev);
-static int     up_attach(struct uart_dev_s *dev);
-static void    up_detach(struct uart_dev_s *dev);
+static int     up_interrupt(int irq, void *context);
 static int     up_ioctl(struct file *filep, int cmd, unsigned long arg);
 static int     up_receive(struct uart_dev_s *dev, uint32 *status);
 static void    up_rxint(struct uart_dev_s *dev, boolean enable);
-static boolean up_rxavailable(struct uart_dev_s *dev);
+static boolean up_rxfifonotempty(struct uart_dev_s *dev);
 static void    up_send(struct uart_dev_s *dev, int ch);
 static void    up_txint(struct uart_dev_s *dev, boolean enable);
-static boolean up_txready(struct uart_dev_s *dev);
-static boolean up_txempty(struct uart_dev_s *dev);
+static boolean up_txfifonotfull(struct uart_dev_s *dev);
+static boolean up_txfifoempty(struct uart_dev_s *dev);
 
 /****************************************************************************
  * Private Variables
@@ -87,52 +87,41 @@ static boolean up_txempty(struct uart_dev_s *dev);
 
 struct uart_ops_s g_uart_ops =
 {
-  up_setup,                 /* setup */
-  up_shutdown,              /* shutdown */
-  up_attach,                /* attach */
-  up_detach,                /* detach */
-  up_ioctl,                 /* ioctl */
-  up_receive,               /* receive */
-  up_rxint,                 /* rxint */
-  up_rxavailable,           /* rxavailable */
-  up_send,                  /* send */
-  up_txint,                 /* txint */
-  up_txready,               /* txready */
-  up_txempty,               /* txempty */
+  .setup          = up_setup,
+  .shutdown       = up_shutdown,
+  .handler        = up_interrupt,
+  .ioctl          = up_ioctl,
+  .receive        = up_receive,
+  .rxint          = up_rxint,
+  .rxfifonotempty = up_rxfifonotempty,
+  .send           = up_send,
+  .txint          = up_txint,
+  .txfifonotfull  = up_txfifonotfull,
+  .txfifoempty    = up_txfifoempty,
 };
 
 /* I/O buffers */
 
-static char g_uartrxbuffer[CONFIG_UART_RXBUFSIZE];
-static char g_uarttxbuffer[CONFIG_UART_TXBUFSIZE];
+static char g_uartrxbuffer[CONFIG_UART0_RXBUFSIZE];
+static char g_uarttxbuffer[CONFIG_UART0_TXBUFSIZE];
 
 /* This describes the state of the fake UART port. */
 
 static uart_dev_t g_uartport =
 {
-  0,                        /* open_count */
-  FALSE,                    /* xmitwaiting */
-  FALSE,                    /* recvwaiting */
-  TRUE,                     /* isconsole */
-  { 1 },                    /* closesem */
-  { 0 },                    /* xmitsem */
-  { 0 },                    /* recvsem */
-  {                         /* xmit */
-    { 1 },                  /*   sem */
-    0,                      /*   head */
-    0,                      /*   tail */
-    CONFIG_UART_TXBUFSIZE,  /*   size */
-    g_uarttxbuffer,         /*   buffer */
+  .irq      = DM320_IRQ_UART0,
+  .recv     =
+  {
+    .size   = CONFIG_UART0_RXBUFSIZE,
+    .buffer = g_uart0rxbuffer,
   },
-  {                         /* recv */
-    { 1 },                  /*   sem */
-    0,                      /*   head */
-    0,                      /*   tail */
-    CONFIG_UART_RXBUFSIZE,  /*   size */
-    g_uartrxbuffer,         /*   buffer */
+  .xmit     =
+  {
+    .size   = CONFIG_UART0_TXBUFSIZE,
+    .buffer = g_uart0txbuffer,
   },
-  &g_uart_ops,              /* ops */
-  NULL,                     /* priv */
+  .ops      = &g_uart_ops,
+  .priv     = NULL,
 };
 
 /****************************************************************************
@@ -168,37 +157,21 @@ static void up_shutdown(struct uart_dev_s *dev)
 }
 
 /****************************************************************************
- * Name: up_attach
+ * Name: up_interrupt
  *
  * Description:
- *   Configure the UART to operation in interrupt driven mode.  This method is
- *   called when the serial port is opened.  Normally, this is just after the
- *   setup() method is called, however, the serial console may operate in a
- *   non-interrupt driven mode during the boot phase.
- *
- *   RX and TX interrupts are not enabled by the attach method (unless the
- *   hardware supports multiple levels of interrupt enabling).  The RX and TX
- *   interrupts are not enabled until the txint() and rxint() methods are called.
+ *   This is the UART interrupt handler.  It will be invoked
+ *   when an interrupt received on the 'irq'  It should call
+ *   uart_transmitchars or uart_receivechar to perform the
+ *   appropriate data transfers.  The interrupt handling logic\
+ *   must be able to map the 'irq' number into the approprite
+ *   uart_dev_s structure in order to call these functions.
  *
  ****************************************************************************/
 
-static int up_attach(struct uart_dev_s *dev)
+static int up_interrupt(int irq, void *context)
 {
   return OK;
-}
-
-/****************************************************************************
- * Name: up_detach
- *
- * Description:
- *   Detach UART interrupts.  This method is called when the serial port is
- *   closed normally just before the shutdown method is called.  The exception is
- *   the serial console which is never shutdown.
- *
- ****************************************************************************/
-
-static void up_detach(struct uart_dev_s *dev)
-{
 }
 
 /****************************************************************************
@@ -221,13 +194,13 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
  * Description:
  *   Called (usually) from the interrupt level to receive one
  *   character from the UART.  Error bits associated with the
- *   receipt are provided in the return 'status'.
+ *   receipt are provided in the the return 'status'.
  *
  ****************************************************************************/
 
 static int up_receive(struct uart_dev_s *dev, uint32 *status)
 {
-  uint8 ch = z80_lowgetc();
+  uint8 ch = up_lowgetc();
   *status = 0;
   return ch;
 }
@@ -245,14 +218,14 @@ static void up_rxint(struct uart_dev_s *dev, boolean enable)
 }
 
 /****************************************************************************
- * Name: up_rxavailable
+ * Name: up_rxfifonotempty
  *
  * Description:
  *   Return TRUE if the receive fifo is not empty
  *
  ****************************************************************************/
 
-static boolean up_rxavailable(struct uart_dev_s *dev)
+static boolean up_rxfifonotempty(struct uart_dev_s *dev)
 {
   return TRUE;
 }
@@ -267,7 +240,7 @@ static boolean up_rxavailable(struct uart_dev_s *dev)
 
 static void up_send(struct uart_dev_s *dev, int ch)
 {
-  z80_lowputc(ch);
+  up_lowputc(ch);
 }
 
 /****************************************************************************
@@ -283,33 +256,33 @@ static void up_txint(struct uart_dev_s *dev, boolean enable)
 }
 
 /****************************************************************************
- * Name: up_txready
+ * Name: up_txfifonotfull
  *
  * Description:
  *   Return TRUE if the tranmsit fifo is not full
  *
  ****************************************************************************/
 
-static boolean up_txready(struct uart_dev_s *dev)
+static boolean up_txfifonotfull(struct uart_dev_s *dev)
 {
   return TRUE;
 }
 
 /****************************************************************************
- * Name: up_txempty
+ * Name: up_txfifoempty
  *
  * Description:
  *   Return TRUE if the transmit fifo is empty
  *
  ****************************************************************************/
 
-static boolean up_txempty(struct uart_dev_s *dev)
+static boolean up_txfifoempty(struct uart_dev_s *dev)
 {
-  return TRUE;
+  return FALSE;
 }
 
 /****************************************************************************
- * Public Functions
+ * Public Funtions
  ****************************************************************************/
 
 /****************************************************************************
@@ -340,7 +313,7 @@ void up_serialinit(void)
   (void)uart_register("/dev/console", &g_uartport);
   (void)uart_register("/dev/ttyS0", &g_uartport);
 }
-#endif /* CONFIG_USE_SERIALDRIVER */
+#endif /* CONFIG_NFILE_DESCRIPTORS > 0 */
 
 /****************************************************************************
  * Name: up_putc
@@ -353,7 +326,9 @@ void up_serialinit(void)
 
 int up_putc(int ch)
 {
-  z80_lowputc(ch);
-  return 0;
+  up_lowputc(ch);
 }
+
+
+
 

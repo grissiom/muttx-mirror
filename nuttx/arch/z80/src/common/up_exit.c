@@ -44,8 +44,8 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <chip/chip.h>
 
-#include "chip/chip.h"
 #include "os_internal.h"
 #include "up_internal.h"
 
@@ -62,16 +62,17 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Private Functions
+ * Private Funtions
  ****************************************************************************/
 
 /****************************************************************************
  * Name: _up_dumponexit
  *
  * Description:
- *   Dump the state of all tasks whenever on task exits.  This is debug
- *   instrumentation that was added to check file-related reference counting
- *   but could be useful again sometime in the future.
+ *   Dump the state of all tasks whenever on task exits.  This
+ *   is debug instrumentation that was added to check file-
+ *   related reference counting but could be useful again
+ *   sometime in the future.
  *
  ****************************************************************************/
 
@@ -113,13 +114,9 @@ static void _up_dumponexit(FAR _TCB *tcb, FAR void *arg)
           struct file_struct *filep = &tcb->streams->sl_streams[i];
           if (filep->fs_filedes >= 0)
             {
-#if CONFIG_STDIO_BUFFER_SIZE > 0
               lldbg("      fd=%d nbytes=%d\n",
                     filep->fs_filedes,
                     filep->fs_bufpos - filep->fs_bufstart);
-#else
-              lldbg("      fd=%d\n", filep->fs_filedes);
-#endif
             }
         }
     }
@@ -128,7 +125,7 @@ static void _up_dumponexit(FAR _TCB *tcb, FAR void *arg)
 #endif
 
 /****************************************************************************
- * Public Functions
+ * Public Funtions
  ****************************************************************************/
 
 /****************************************************************************
@@ -136,15 +133,13 @@ static void _up_dumponexit(FAR _TCB *tcb, FAR void *arg)
  *
  * Description:
  *   This function causes the currently executing task to cease
- *   to exist.  This is a special case of task_delete() where the task to
- *   be deleted is the currently executing task.  It is more complex because
- *   a context switch must be perform to the the next ready to run task.
+ *   to exist.  This is a special case of task_delete().
  *
  ****************************************************************************/
 
 void _exit(int status)
 {
-  FAR _TCB* tcb;
+  FAR _TCB* tcb = (FAR _TCB*)g_readytorun.head;
 
   /* Disable interrupts.  Interrupts will remain disabled until
    * the new task is resumed below.
@@ -152,23 +147,51 @@ void _exit(int status)
 
   (void)irqsave();
 
-  slldbg("TCB=%p exitting\n", tcb);
+  lldbg("TCB=%p exitting\n", tcb);
 
 #if defined(CONFIG_DUMP_ON_EXIT) && defined(CONFIG_DEBUG)
   lldbg("Other tasks:\n");
   sched_foreach(_up_dumponexit, NULL);
 #endif
 
-  /* Destroy the task at the head of the ready to run list. */
+  /* Remove the tcb task from the ready-to-run list.  We can
+   * ignore the return value because we know that a context
+   * switch is needed.
+   */
 
-  (void)task_deletecurrent();
+  (void)sched_removereadytorun(tcb);
+
+  /* We are not in a bad stack-- the head of the ready to run task list
+   * does not correspond to the thread that is running.  Disabling pre-
+   * emption on this TCB should be enough to keep things stable.
+   */
+
+  sched_lock();
+
+  /* Move the TCB to the specified blocked task list and delete it */
+
+  sched_addblocked(tcb, TSTATE_TASK_INACTIVE);
+  task_delete(tcb->pid);
+
+  /* If there are any pending tasks, then add them to the g_readytorun
+   * task list now
+   */
+
+  if (g_pendingtasks.head)
+    {
+      (void)sched_mergepending();
+    }
+
+  /* Now calling sched_unlock() should have no effect */
+
+  sched_unlock();
 
   /* Now, perform the context switch to the new ready-to-run task at the
    * head of the list.
    */
 
   tcb = (FAR _TCB*)g_readytorun.head;
-  slldbg("New Active Task TCB=%p\n", tcb);
+  lldbg("New Active Task TCB=%p\n", tcb);
 
   /* Then switch contexts */
 

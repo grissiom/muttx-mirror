@@ -33,14 +33,5 @@
 #
 ############################################################################
 
-ifeq ($(CONFIG_FS_FAT),y)
-# Files required for FAT file system support
-
-ASRCS		+=
-CSRCS		+= fs_fat32.c fs_fat32attrib.c fs_fat32util.c
-
-# Files required for mkfatfs utility function
-
-ASRCS		+=
-CSRCS		+= fs_mkfatfs.c fs_configfat.c fs_writefat.c
-endif
+FAT_ASRCS =
+FAT_CSRCS =  fs_fat32.c fs_fat32attrib.c fs_fat32util.c

@@ -98,7 +98,7 @@ sint32 poffGetRawLineNumber(poffHandle_t handle, poffLineNumber_t *lineno)
     {
       /* Copy the raw line number information to the user */
 
-      memcpy(lineno, &poffInfo->lineNumberTable[lineNumberIndex], sizeof(poffLineNumber_t));
+      *lineno = *(poffLineNumber_t*)&poffInfo->lineNumberTable[lineNumberIndex];
 
       /* Set up for the next read */
 

@@ -56,6 +56,8 @@
  * Pre-Processor Definitions
  ****************************************************************************/
 
+#define NX_NCOLORS 256
+
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -78,14 +80,14 @@
 
 static inline void nxmu_disconnect(FAR struct nxfe_conn_s *conn)
 {
-  struct nxclimsg_disconnected_s outmsg;
-  int ret;
+  struct nxclimsg_s outmsg;
+  int               ret;
 
   /* Send the handshake message back to the client */
 
   outmsg.msgid = NX_CLIMSG_DISCONNECTED;
 
-  ret = mq_send(conn->swrmq, &outmsg, sizeof(struct nxclimsg_disconnected_s), NX_CLIMSG_PRIO);
+  ret = mq_send(conn->swrmq, &outmsg, sizeof(struct nxclimsg_s), NX_CLIMSG_PRIO);
   if (ret < 0)
     {
       gdbg("mq_send failed: %d\n", errno);
@@ -102,9 +104,9 @@ static inline void nxmu_disconnect(FAR struct nxfe_conn_s *conn)
 
 static inline void nxmu_connect(FAR struct nxfe_conn_s *conn)
 {
-  char mqname[NX_CLIENT_MXNAMELEN];
-  struct nxclimsg_connected_s outmsg;
-  int ret;
+  char              mqname[NX_CLIENT_MXNAMELEN];
+  struct nxclimsg_s outmsg;
+  int               ret;
 
   /* Create the client MQ name */
 
@@ -112,8 +114,9 @@ static inline void nxmu_connect(FAR struct nxfe_conn_s *conn)
 
   /* Open the client MQ -- this should have already been created by the client */
 
+  outmsg.msgid = NX_CLIMSG_CONNECTED;
   conn->swrmq  = mq_open(mqname, O_WRONLY);
-  if (conn->swrmq == (mqd_t)-1)
+  if (conn->swrmq)
     {
       gdbg("mq_open(%s) failed: %d\n", mqname, errno);
       outmsg.msgid = NX_CLIMSG_DISCONNECTED;
@@ -121,9 +124,7 @@ static inline void nxmu_connect(FAR struct nxfe_conn_s *conn)
 
   /* Send the handshake message back to the client */
 
-  outmsg.msgid = NX_CLIMSG_CONNECTED;
-
-  ret = mq_send(conn->swrmq, &outmsg, sizeof(struct nxclimsg_connected_s), NX_CLIMSG_PRIO);
+  ret = mq_send(conn->cwrmq, &outmsg, sizeof(struct nxclimsg_s), NX_CLIMSG_PRIO);
   if (ret < 0)
     {
       gdbg("mq_send failed: %d\n", errno);
@@ -195,7 +196,7 @@ static inline int nxmu_setup(FAR const char *mqname,
   ret = nxbe_fbconfigure(fb, &fe->be);
   if (ret < 0)
     {
-      gdbg("nxbe_fbconfigure failed: %d\n", -ret);
+      gdbg("nxs_fbconfigure failed: %d\n", -ret);
       errno = -ret;
       return ERROR;
     }
@@ -204,7 +205,7 @@ static inline int nxmu_setup(FAR const char *mqname,
   ret = nxbe_colormap(fb);
   if (ret < 0)
     {
-      gdbg("nxbe_colormap failed: %d\n", -ret);
+      gdbg("nx_colormap failed: %d\n", -ret);
       errno = -ret;
       return ERROR;
     }
@@ -223,7 +224,7 @@ static inline int nxmu_setup(FAR const char *mqname,
   attr.mq_flags   = 0;
 
   fe->conn.crdmq = mq_open(mqname, O_RDONLY|O_CREAT, 0666, &attr);
-  if (fe->conn.crdmq == (mqd_t)-1)
+  if (fe->conn.crdmq)
     {
       gdbg("mq_open(%s) failed: %d\n", mqname, errno);
       return ERROR; /* mq_open sets errno */
@@ -238,8 +239,10 @@ static inline int nxmu_setup(FAR const char *mqname,
    * the server message loop.
    */
 
-  fe->conn.swrmq = mq_open(mqname, O_WRONLY);
-  if (fe->conn.swrmq == (mqd_t)-1)
+  /* Open the server MQ for writing (same attributes) */
+
+  fe->conn.cwrmq = mq_open(mqname, O_WRONLY);
+  if (fe->conn.cwrmq)
     {
       gdbg("mq_open(%s) failed: %d\n", mqname, errno);
       mq_close(fe->conn.crdmq);
@@ -255,8 +258,8 @@ static inline int nxmu_setup(FAR const char *mqname,
   fe->be.bkgd.conn = &fe->conn;
   fe->be.bkgd.be   = (FAR struct nxbe_state_s*)fe;
 
-  fe->be.bkgd.bounds.pt2.x = fe->be.vinfo.xres - 1;
-  fe->be.bkgd.bounds.pt2.y = fe->be.vinfo.yres - 1;
+  fe->be.bkgd.bounds.pt2.x = fe->be.vinfo.xres;
+  fe->be.bkgd.bounds.pt2.y = fe->be.vinfo.yres;
 
   /* Complete initialization of the server state structure.  The
    * window list contains only one element:  The background window
@@ -375,7 +378,7 @@ int nx_runinstance(FAR const char *mqname, FAR struct fb_vtable_s *fb)
          case NX_SVRMSG_OPENWINDOW: /* Create a new window */
            {
              FAR struct nxsvrmsg_openwindow_s *openmsg = (FAR struct nxsvrmsg_openwindow_s *)buffer;
-             nxmu_openwindow(&fe.be, openmsg->wnd);
+             nxmu_openwindow(openmsg->conn, &fe.be, openmsg->wnd);
            }
            break;
 
@@ -383,19 +386,6 @@ int nx_runinstance(FAR const char *mqname, FAR struct fb_vtable_s *fb)
            {
              FAR struct nxsvrmsg_closewindow_s *closemsg = (FAR struct nxsvrmsg_closewindow_s *)buffer;
              nxbe_closewindow(closemsg->wnd);
-           }
-           break;
-
-         case NX_SVRMSG_REQUESTBKGD: /* Give access to the background window */
-           {
-             FAR struct nxsvrmsg_requestbkgd_s *rqbgmsg = (FAR struct nxsvrmsg_requestbkgd_s *)buffer;
-             nxmu_requestbkgd(rqbgmsg->conn, &fe.be, rqbgmsg->cb, rqbgmsg->arg);
-           }
-           break;
-
-         case NX_SVRMSG_RELEASEBKGD: /* End access to the background window */
-           {
-             nxmu_releasebkgd(&fe);
            }
            break;
 
@@ -430,7 +420,7 @@ int nx_runinstance(FAR const char *mqname, FAR struct fb_vtable_s *fb)
          case NX_SVRMSG_LOWER: /* Lower the window to the bottom of the display */
            {
              FAR struct nxsvrmsg_lower_s *lowermsg = (FAR struct nxsvrmsg_lower_s *)buffer;
-             nxbe_lower(lowermsg->wnd);
+             nxbe_raise(lowermsg->wnd);
            }
            break;
 
@@ -444,7 +434,7 @@ int nx_runinstance(FAR const char *mqname, FAR struct fb_vtable_s *fb)
          case NX_SVRMSG_FILLTRAP: /* Fill a trapezoidal region in the window with a color */
            {
              FAR struct nxsvrmsg_filltrapezoid_s *trapmsg = (FAR struct nxsvrmsg_filltrapezoid_s *)buffer;
-             nxbe_filltrapezoid(trapmsg->wnd, &trapmsg->clip, &trapmsg->trap, trapmsg->color);
+             nxbe_filltrapezoid(trapmsg->wnd, &trapmsg->trap, trapmsg->color);
            }
            break;
          case NX_SVRMSG_MOVE: /* Move a rectangular region within the window */
@@ -464,7 +454,6 @@ int nx_runinstance(FAR const char *mqname, FAR struct fb_vtable_s *fb)
          case NX_SVRMSG_SETBGCOLOR: /* Set the color of the background */
            {
              FAR struct nxsvrmsg_setbgcolor_s *bgcolormsg = (FAR struct nxsvrmsg_setbgcolor_s *)buffer;
-             nxgl_colorcopy(fe.be.bgcolor, bgcolormsg->color);
              nxbe_fill(&fe.be.bkgd, &fe.be.bkgd.bounds, bgcolormsg->color);
            }
            break;
@@ -473,7 +462,7 @@ int nx_runinstance(FAR const char *mqname, FAR struct fb_vtable_s *fb)
          case NX_SVRMSG_MOUSEIN: /* New mouse report from mouse client */
            {
              FAR struct nxsvrmsg_mousein_s *mousemsg = (FAR struct nxsvrmsg_mousein_s *)buffer;
-             nxmu_mousein(&fe, &mousemsg->pt, mousemsg->buttons);
+             nxmu_mousein(&fe.be, &mousemsg->pt, mousemsg->buttons);
            }
            break;
 #endif
@@ -481,7 +470,7 @@ int nx_runinstance(FAR const char *mqname, FAR struct fb_vtable_s *fb)
          case NX_SVRMSG_KBDIN: /* New keyboard report from keyboard client */
            {
              FAR struct nxsvrmsg_kbdin_s *kbdmsg = (FAR struct nxsvrmsg_kbdin_s *)buffer;
-             nxmu_kbdin(&fe, kbdmsg->nch, kbdmsg->ch);
+             nxmu_kbdin(&fe.be, kbdmsg->nch, kbdmsg->ch);
            }
            break;
 #endif
@@ -489,15 +478,8 @@ int nx_runinstance(FAR const char *mqname, FAR struct fb_vtable_s *fb)
          /* Messages sent to the backgound window ***************************/
 
          case NX_CLIMSG_REDRAW: /* Re-draw the background window */
-            {
-              FAR struct nxclimsg_redraw_s *redraw = (FAR struct nxclimsg_redraw_s *)buffer;
-              DEBUGASSERT(redraw->wnd == &fe.be.bkgd);
-              gvdbg("Re-draw background rect={(%d,%d),(%d,%d)}\n",
-                    redraw->rect.pt1.x, redraw->rect.pt1.y,
-                    redraw->rect.pt2.x, redraw->rect.pt2.y);
-              nxbe_fill(&fe.be.bkgd, &redraw->rect, fe.be.bgcolor);
-            }
-          break;
+           nxbe_redraw(&fe.be, &fe.be.bkgd, &fe.be.bkgd.bounds);
+           break;
 
          case NX_CLIMSG_MOUSEIN:      /* Ignored */
          case NX_CLIMSG_KBDIN:

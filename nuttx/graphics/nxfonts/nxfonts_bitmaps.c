@@ -1,5 +1,5 @@
 /****************************************************************************
- * graphics/nxfonts/nxfonts_bitmap.h
+ * graphics/nxmu/nxfe.h
  *
  *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -40,8 +40,6 @@
 #include <nuttx/config.h>
 #include <sys/types.h>
 #include <nuttx/nxfonts.h>
-
-#include "nxfonts_internal.h"
 
 /* Pick the fontset */
 
@@ -1624,27 +1622,24 @@ NXFONT_DEFMETRIC(255),
 
 struct nx_fontset_s g_7bitfonts =
 {
-  NXFONT_MIN7BIT,          /* First glyph code */
-  NXFONT_N7BITFONTS,       /* Number of bitmap glyphs */
-  g_7bitmaps               /* List of glyphs */
+  14,                   /* ascent: Pixels above base (max) */
+  9,                    /* descent: Pixels below base (max) */
+  NXFONT_MIN7BIT,       /* First font code */
+  NXFONT_N7BITFONTS,    /* Number of bitmap fonts */
+  0,                    /* (unused) */
+  g_7bitmaps            /* List of fonts */
 };
 
 #if CONFIG_NXFONTS_CHARBITS >= 8
 struct nx_fontset_s g_8bitfonts =
 {
-  NXFONT_MIN8BIT,          /* First glyph code */
-  NXFONT_N8BITFONTS,       /* Number of bitmap glyphs */
-  g_8bitmaps               /* List of glyphs */
+  14                    /* ascent: Pixels above base (max) */
+  9                     /* descent: Pixels below base (max) */
+  NXFONT_MIN8BIT,       /* First font code */
+  NXFONT_N8BITFONTS,    /* Number of bitmap fonts */
+  g_8bitmaps            /* List of fonts */
 };
 #endif
-
-struct nx_font_s g_fonts =
-{
-  NXFONT_MAXHEIGHT,        /* Max. height of a glyph in rows */
-  NXFONT_MAXWIDTH,         /* Max. width of a glyph in pixels */
-  CONFIG_NXFONTS_CHARBITS, /* Max number of bits per character code */
-  NXFONT_SPACEWIDTH,       /* The width of a space in pixels */
-};
 
 /****************************************************************************
  * Private Functions

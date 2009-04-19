@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/z80/src/common/up_releasepending.c
+ * common/up_releasepending.c
  *
  *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -44,9 +44,8 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <chip/chip.h>
 
-#include "chip/chip.h"
-#include "chip/switch.h"
 #include "os_internal.h"
 #include "up_internal.h"
 
@@ -59,11 +58,11 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Private Functions
+ * Private Funtions
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Funtions
  ****************************************************************************/
 
 /****************************************************************************
@@ -81,7 +80,7 @@ void up_release_pending(void)
 {
   FAR _TCB *rtcb = (FAR _TCB*)g_readytorun.head;
 
-  slldbg("From TCB=%p\n", rtcb);
+  lldbg("From TCB=%p\n", rtcb);
 
   /* Merge the g_pendingtasks list into the g_readytorun task list */
 
@@ -93,7 +92,7 @@ void up_release_pending(void)
        * interrupt context:
        */
 
-      if (IN_INTERRUPT())
+      if (IN_INTERRUPT)
         {
           /* Yes, then we have to do things differently.
            * Just copy the current context into the OLD rtcb.
@@ -106,7 +105,7 @@ void up_release_pending(void)
            */
 
           rtcb = (FAR _TCB*)g_readytorun.head;
-          slldbg("New Active Task TCB=%p\n", rtcb);
+          lldbg("New Active Task TCB=%p\n", rtcb);
 
           /* Then setup so that the context will be performed on exit
            * from the interrupt.
@@ -128,7 +127,7 @@ void up_release_pending(void)
            */
 
           rtcb = (FAR _TCB*)g_readytorun.head;
-          slldbg("New Active Task TCB=%p\n", rtcb);
+          lldbg("New Active Task TCB=%p\n", rtcb);
 
           /* Then switch contexts */
 

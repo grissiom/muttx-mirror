@@ -57,10 +57,6 @@
 
 /* Configuration ************************************************************/
 
-#ifdef CONFIG_DISABLE_MQUEUE
-#  error "Message queues are disabled(CONFIG_DISABLE_MQUEUE)"
-#endif
-
 #ifndef CONFIG_NX_MXSERVERMSGS
 #  define CONFIG_NX_MXSERVERMSGS 32 /* Number of pending messages in server MQ */
 #endif
@@ -110,6 +106,7 @@ struct nxfe_conn_s
 
   mqd_t crdmq;                        /* MQ to read from the server (may be non-blocking) */
   mqd_t cwrmq;                        /* MQ to write to the server (blocking) */
+  FAR const struct nx_callback_s *cb; /* Message handling callbacks */
 
   /* These are only usable on the server side of the connection */
 
@@ -153,8 +150,6 @@ enum nxmsg_e
   NX_SVRMSG_DISCONNECT,       /* Tear down connection with terminating client */
   NX_SVRMSG_OPENWINDOW,       /* Create a new window */
   NX_SVRMSG_CLOSEWINDOW,      /* Close an existing window */
-  NX_SVRMSG_REQUESTBKGD,      /* Open the background window */
-  NX_SVRMSG_RELEASEBKGD,      /* Release the background window */
   NX_SVRMSG_SETPOSITION,      /* Window position has changed */
   NX_SVRMSG_SETSIZE,          /* Window size has changed */
   NX_SVRMSG_GETPOSITION,      /* Get the current window position and size */
@@ -178,25 +173,14 @@ enum nxmsg_e
 
 /* Server-to-Client Message Structures **************************************/
 
-/* The generic message structure.  All messages begin with this form. */
+/* The generic message structure.  All messages begin with this form.  Also, messages
+ * that have no data other than the msgid event use this structure.  This includes:
+ * NX_CLIMSG_CONNECTED and NX_CLIMSG_DISCONNECTED.
+ */
 
 struct nxclimsg_s
 {
   uint32 msgid;                  /* Any of nxclimsg_e */
-};
-
-/* The server is now connected */
-
-struct nxclimsg_connected_s
-{
-  uint32 msgid;                  /* NX_CLIMSG_REDRAW_CONNECTED */
-};
-
-/* The server is now disconnected */
-
-struct nxclimsg_disconnected_s
-{
-  uint32 msgid;                  /* NX_CLIMSG_REDRAW_DISCONNECTED */
 };
 
 /* This message is received when a requested window has been opened.  If wnd is NULL
@@ -217,9 +201,8 @@ struct nxclimsg_newposition_s
 {
   uint32 msgid;                  /* NX_CLIMSG_NEWPOSITION */
   FAR struct nxbe_window_s *wnd; /* The window whose position/size has changed */
-  FAR struct nxgl_size_s size;   /* The current window size */
+  FAR struct nxgl_rect_s size;   /* The current window size */
   FAR struct nxgl_point_s pos;   /* The current window position */
-  FAR struct nxgl_rect_s bounds; /* Size of screen */
 };
 
 /* This message reports a new mouse event to a particular window */
@@ -231,17 +214,17 @@ struct nxclimsg_mousein_s
   FAR struct nxbe_window_s *wnd; /* The handle of window receiving mouse input */
   struct nxgl_point_s pos;       /* Mouse X/Y position */
   ubyte buttons;                 /* Mouse button set */
-};
+}
 #endif
 
 /* This message reports a new keypad event to a particular window */
 
-#ifdef CONFIG_NX_KBD
-struct nxclimsg_kbdin_s
+#ifdef CONFIG_NX_KBDIN
+struct nxclimsg_key
 {
   uint32 msgid;                  /* NX_CLIMSG_KBDIN */
   FAR struct nxbe_window_s *wnd; /* The handle of window receiving keypad input */
-  ubyte nch;                     /* Number of characters received */
+  ubyte nch                      /* Number of characters received */
   ubyte ch[1];                   /* Array of received characters */
 };
 #endif
@@ -264,6 +247,7 @@ struct nxsvrmsg_s                    /* Generic server message */
 struct nxsvrmsg_openwindow_s
 {
   uint32 msgid;                      /* NX_SVRMSG_OPENWINDOW */
+  FAR struct nxfe_conn_s *conn;      /* The specific connection sending the message */
   FAR struct nxbe_window_s *wnd;     /* The pre-allocated window structure */
 };
 
@@ -273,23 +257,6 @@ struct nxsvrmsg_closewindow_s
 {
   uint32 msgid;                      /* NX_SVRMSG_CLOSEWINDOW */
   FAR struct nxbe_window_s *wnd;     /* The window to be closed */
-};
-
-/* This message requests the server to create a new window */
-
-struct nxsvrmsg_requestbkgd_s
-{
-  uint32 msgid;                      /* NX_SVRMSG_REQUESTBKGD */
-  FAR struct nxfe_conn_s *conn;      /* The specific connection sending the message */
-  FAR const struct nx_callback_s *cb; /* Event handling callbacks */
-  FAR void *arg;                     /* Client argument used with callbacks */
-};
-
-/* This message informs the server that client wishes to close a window */
-
-struct nxsvrmsg_releasebkgd_s
-{
-  uint32 msgid;                      /* NX_SVRMSG_RELEASEBKGD */
 };
 
 /* This message informs the server that the size or position of the window has changed */
@@ -307,7 +274,7 @@ struct nxsvrmsg_setsize_s
 {
   uint32 msgid;                      /* NX_SVRMSG_SETSIZE */
   FAR struct nxbe_window_s *wnd;     /* The window whose position/size has changed */
-  FAR struct nxgl_size_s  size;      /* The new window size */
+  FAR struct nxgl_rect_s  size;      /* The new window size */
 };
 
 /* This message informs the server that the size or position of the window has changed */
@@ -350,7 +317,6 @@ struct nxsvrmsg_filltrapezoid_s
 {
   uint32  msgid;                     /* NX_SVRMSG_FILLTRAP */
   FAR struct nxbe_window_s *wnd;     /* The window to fill  */
-  FAR struct nxgl_rect_s clip;       /* The clipping window */
   struct nxgl_trapezoid_s trap;      /* The trapezoidal region in the window to fill */
   nxgl_mxpixel_t color[CONFIG_NX_NPLANES]; /* Color to use in the fill */
 };
@@ -394,9 +360,9 @@ struct nxsvrmsg_setbgcolor_s
 struct nxsvrmsg_mousein_s
 {
   uint32 msgid;                      /* NX_SVRMSG_MOUSEIN */
-  struct nxgl_point_s pt;            /* Mouse X/Y position */
+  struct nx_point_x pt;              /* Mouse X/Y position */
   ubyte buttons;                     /* Mouse button set */
-};
+}
 #endif
 
 /* This message reports a new keyboard event from a hardware controller attached to
@@ -404,13 +370,13 @@ struct nxsvrmsg_mousein_s
  * interrupt handler).
  */
 
-#ifdef CONFIG_NX_KBD
+#ifdef CONFIG_NX_EXTERNKBD
 struct nxsvrmsg_kbdin_s
 {
   uint32     msgid;                  /* NX_SVRMSG_KBDIN */
-  ubyte      nch ;                   /* Number of characters received */
+  ubyte      nch                     /* Number of characters received */
   ubyte      ch[1];                  /* Array of received characters */
-};
+}
 #endif
 
 /****************************************************************************
@@ -428,39 +394,6 @@ extern "C" {
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: nxfe_constructwindow
- *
- * Description:
- *   This function is the same a nx_openwindow EXCEPT that the client provides
- *   the window structure instance.  nx_constructwindow will initialize the
- *   the pre-allocated window structure for use by NX.  This function is
- *   provided in addition to nx_open window in order to support a kind of
- *   inheritance:  The caller's window structure may include extensions that
- *   are not visible to NX.
- *
- *   NOTE:  wnd must have been allocated using malloc() (or related allocators)
- *   Once provided to nxfe_constructwindow() that memory is owned and managed
- *   by NX.  On certain error conditions or when the window is closed, NX will
- *   free() the the window.
- *
- * Input Parameters:
- *   handle - The handle returned by nx_connect
- *   wnd    - The pre-allocated window structure.
- *   cb     - Callbacks used to process window events
- *   arg    - User provided value that will be returned with NX callbacks.
- *
- * Return:
- *   OK on success; ERROR on failure with errno set appropriately.  In the
- *   case of ERROR, NX will have dealloated the pre-allocated window.
- *
- ****************************************************************************/
-
-EXTERN int nxfe_constructwindow(NXHANDLE handle,
-                                FAR struct nxbe_window_s *wnd,
-                                FAR const struct nx_callback_s *cb,
-                                FAR void *arg);
 
 /****************************************************************************
  * Name: nxmu_semtake
@@ -485,7 +418,8 @@ EXTERN void nxmu_semtake(sem_t *sem);
  *   Create a new window.
  *
  * Input Parameters:
- *   be  - The back-end status structure
+ *   conn - The client containing connection information [IN]
+ *   svr  - The server state structure [IN]
  *   wnd  - The pre-allocated window structure to be ininitilized [IN/OUT]
  *
  * Return:
@@ -493,48 +427,9 @@ EXTERN void nxmu_semtake(sem_t *sem);
  *
  ****************************************************************************/
 
-EXTERN void nxmu_openwindow(FAR struct nxbe_state_s *be,
+EXTERN void nxmu_openwindow(FAR struct nxfe_conn_s *conn,
+                            FAR struct nxbe_state_s *be,
                             FAR struct nxbe_window_s *wnd);
-
-/****************************************************************************
- * Name: nxmu_requestbkgd
- *
- * Description:
- *   Perform the server-side operation for the nx_requestbkgd operation:
- *   Give the client control of the background window connection and receipt
- *   of all background window callbacks.
- *
- *   conn - The client containing connection information [IN]
- *   be   - The server state structure [IN]
- *   cb   - Callbacks used to process window events
- *   arg  - User provided argument (see nx_openwindow, nx_constructwindow)
- *
- * Return:
- *   None
- *
- ****************************************************************************/
-
-EXTERN void nxmu_requestbkgd(FAR struct nxfe_conn_s *conn,
-                             FAR struct nxbe_state_s *be,
-                             FAR const struct nx_callback_s *cb,
-                             FAR void *arg);
-
-/****************************************************************************
- * Name: nxmu_releasebkgd
- *
- * Description:
- *   Release the background window previously acquired using nxmu_openbgwindow
- *   and return control of the background to NX.
- *
- * Input Parameters:
- *   fe - The front-end state structure
- *
- * Return:
- *   None
- *
- ****************************************************************************/
-
-EXTERN void nxmu_releasebkgd(FAR struct nxfe_state_s *fe);
 
 /****************************************************************************
  * Name: nxfe_reportposition
@@ -575,16 +470,10 @@ EXTERN void nxmu_mouseinit(int x, int y);
  * Description:
  *   Report mouse position info to the specified window
  *
- * Input Parameters:
- *   wnd - The window to receive the mouse report
- *
- * Returned Value:
- *   0: Mouse report sent; >0: Mouse report not sent; <0: An error occurred
- *
  ****************************************************************************/
 
 #ifdef CONFIG_NX_MOUSE
-EXTERN int nxmu_mousereport(struct nxbe_window_s *wnd);
+EXTERN void nxmu_mousereport(struct nxbe_window_s *wnd);
 #endif
 
 /****************************************************************************
@@ -598,8 +487,8 @@ EXTERN int nxmu_mousereport(struct nxbe_window_s *wnd);
  ****************************************************************************/
 
 #ifdef CONFIG_NX_MOUSE
-EXTERN int nxmu_mousein(FAR struct nxfe_state_s *fe,
-                        FAR const struct nxgl_point_s *pos, int button);
+EXTERN nxmu_mousein(FAR struct nxfe_state_s *fe,
+                    FAR const struct nxgl_point_s *pos, int button);
 #endif
 
 /****************************************************************************
@@ -613,7 +502,7 @@ EXTERN int nxmu_mousein(FAR struct nxfe_state_s *fe,
  ****************************************************************************/
 
 #ifdef CONFIG_NX_KBD
-EXTERN void nxmu_kbdin(FAR struct nxfe_state_s *fe, ubyte nch, FAR ubyte *ch);
+EXTERN void nxmu_kbdin(FAR struct nxs_server_s *svr, ubyte nch, ubyte *ch);
 #endif
 
 #undef EXTERN

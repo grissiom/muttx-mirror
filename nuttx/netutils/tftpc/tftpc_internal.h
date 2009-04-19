@@ -42,7 +42,6 @@
 
 #include <nuttx/config.h>
 #include <sys/types.h>
-#include <nuttx/compiler.h>
 #include <net/uip/uipopt.h>
 
 /****************************************************************************
@@ -55,10 +54,18 @@
  * then default values are assigned here.
  */
 
-/* The "well-known" server TFTP port number (usually 69).  This port number
- * is only used for the initial server contact.  The server will negotiate
- * a new transfer port number after the initial client request.
- */
+/* Number of packets before ACK is returned */
+
+#ifndef CONFIG_NETUTILS_TFTP_ACKPACKETS
+#  define CONFIG_NETUTILS_TFTP_ACKPACKETS 1
+#endif
+
+#define TFTP_MAXACKPACKETS 16
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > TFTP_MAXACKPACKETS
+#  error "CONFIG_NETUTILS_TFTP_ACKPACKETS exceeds maximum"
+#endif
+
+/* The TFTP port number (usually 69) */
 
 #ifndef CONFIG_NETUTILS_TFTP_PORT
 #  define CONFIG_NETUTILS_TFTP_PORT 69
@@ -69,12 +76,6 @@
 #ifndef CONFIG_NETUTILS_TFTP_TIMEOUT
 #  define CONFIG_NETUTILS_TFTP_TIMEOUT 10 /* One second */
 #endif
-
-/* Dump received buffers */
-
-#undef CONFIG_NETUTILS_TFTP_DUMPBUFFERS
-
-/* Sizes of TFTP messsage headers */
 
 #define TFTP_ACKHEADERSIZE  4
 #define TFTP_ERRHEADERSIZE  4
@@ -89,9 +90,7 @@
 
 #if UIP_UDP_MSS < TFTP_MAXPACKETSIZE
 #  define TFTP_PACKETSIZE   UIP_UDP_MSS
-#  ifdef CONFIG_CPP_HAVE_WARNING
-#    warning "uIP MSS is too small for TFTP"
-#  endif
+#  warning "uIP MSS is too small for TFTP"
 #else
 #  define TFTP_PACKETSIZE   TFTP_MAXPACKETSIZE
 #endif
@@ -143,6 +142,15 @@
  * Public Data
  ****************************************************************************/
 
+#if CONFIG_DEBUG
+extern const char g_tftpcallfailed[];
+extern const char g_tftpcalltimedout[];
+extern const char g_tftpnomemory[];
+extern const char g_tftptoomanyretries[];
+extern const char g_tftpaddress[];
+extern const char g_tftpport[];
+#endif
+
 /****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
@@ -153,17 +161,11 @@ extern int tftp_sockinit(struct sockaddr_in *server, in_addr_t addr);
 extern int tftp_mkreqpacket(ubyte *buffer, int opcode, const char *path, boolean binary);
 extern int tftp_mkackpacket(ubyte *buffer, uint16 blockno);
 extern int tftp_mkerrpacket(ubyte *buffer, uint16 errorcode, const char *errormsg);
-#if defined(CONFIG_DEBUG) && defined(CONFIG_DEBUG_NET)
+#if CONFIG_DEBUG
 extern int tftp_parseerrpacket(const ubyte *packet);
 #endif
 
 extern ssize_t tftp_recvfrom(int sd, void *buf, size_t len, struct sockaddr_in *from);
 extern ssize_t tftp_sendto(int sd, const void *buf, size_t len, struct sockaddr_in *to);
-
-#ifdef CONFIG_NETUTILS_TFTP_DUMPBUFFERS
-extern void tftp_dumpbuffer(const char *msg, ubyte *buffer, int nbytes);
-#else
-# define tftp_dumpbuffer(msg, buffer, nbytes)
-#endif
 
 #endif /* __NETUTILS_TFTP_TFTPC_INTERNAL_H */

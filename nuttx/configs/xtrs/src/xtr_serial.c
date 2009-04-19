@@ -58,8 +58,14 @@
 #include "os_internal.h"
 #include "up_internal.h"
 
-#ifdef CONFIG_USE_SERIAL_DRIVER
+/* Defined in drivers/dev_lowconsole.c */
 
+#ifdef CONFIG_USE_LOWCONSOLE
+extern void lowconsole_init(void);
+#endif
+
+#if CONFIG_NFILE_DESCRIPTORS > 0
+#if defined(CONFIG_DEV_CONSOLE) && !defined(CONFIG_DEV_LOWCONSOLE)
 /****************************************************************************
  * Definitions
  ****************************************************************************/
@@ -211,10 +217,10 @@ static void up_shutdown(struct uart_dev_s *dev)
  * Description:
  *   Configure the UART to operation in interrupt driven mode.  This method is
  *   called when the serial port is opened.  Normally, this is just after the
- *   setup() method is called, however, the serial console may operate in a
- *   non-interrupt driven mode during the boot phase.
+ *   the setup() method is called, however, the serial console may operate in
+ *   a non-interrupt driven mode during the boot phase.
  *
- *   RX and TX interrupts are not enabled by the attach method (unless the
+ *   RX and TX interrupts are not enabled when by the attach method (unless the
  *   hardware supports multiple levels of interrupt enabling).  The RX and TX
  *   interrupts are not enabled until the txint() and rxint() methods are called.
  *
@@ -271,13 +277,13 @@ static int up_ioctl(struct file *filep, int cmd, unsigned long arg)
  * Description:
  *   Called (usually) from the interrupt level to receive one
  *   character from the UART.  Error bits associated with the
- *   receipt are provided in the return 'status'.
+ *   receipt are provided in the the return 'status'.
  *
  ****************************************************************************/
 
 static int up_receive(struct uart_dev_s *dev, uint32 *status)
 {
-//  uint8 ch = z80_lowputc();
+//  uint8 ch = up_lowgetc();
 
   *status = 0;
   return ch;
@@ -318,7 +324,7 @@ static boolean up_rxavailable(struct uart_dev_s *dev)
 
 static void up_send(struct uart_dev_s *dev, int ch)
 {
-  z80_lowputc(ch);
+  up_lowputc(ch);
 }
 
 /****************************************************************************
@@ -376,6 +382,7 @@ static boolean up_txempty(struct uart_dev_s *dev)
 void up_earlyserialinit(void)
 {
 }
+#endif /* CONFIG_DEV_CONSOLE && !CONFIG_DEV_LOWCONSOLE */
 
 /****************************************************************************
  * Name: up_serialinit
@@ -388,10 +395,14 @@ void up_earlyserialinit(void)
 
 void up_serialinit(void)
 {
+#if defined(CONFIG_DEV_LOWCONSOLE)
+  (void)lowconsole_init();
+#elif defined(CONFIG_DEV_CONSOLE)
   (void)uart_register("/dev/console", &g_uartport);
   (void)uart_register("/dev/ttyS0", &g_uartport);
+#endif
 }
-#endif /* CONFIG_USE_SERIALDRIVER */
+#endif /* CONFIG_NFILE_DESCRIPTORS */
 
 /****************************************************************************
  * Name: up_putc
@@ -404,6 +415,6 @@ void up_serialinit(void)
 
 int up_putc(int ch)
 {
-  z80_lowputc(ch);
+  up_lowputc(ch);
   return 0;
 }

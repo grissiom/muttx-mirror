@@ -79,8 +79,7 @@
  *
  * Input Parameters:
  *   handle - The handle returned by nx_connect
- *   cb     - Callbacks used to process windo events
- *   arg    - User provided value that will be returned with NX callbacks.
+ *   wnd    - Location to return the handle of the new window
  *
  * Return:
  *   Success: A non-NULL handle used with subsequent NX accesses
@@ -88,19 +87,12 @@
  *
  ****************************************************************************/
 
-NXWINDOW nx_openwindow(NXHANDLE handle, FAR const struct nx_callback_s *cb,
-                       FAR void *arg)
+NXWINDOW nx_openwindow(NXHANDLE handle)
 {
+  FAR struct nxfe_conn_s *conn = (FAR struct nxfe_conn_s *)handle;
   FAR struct nxbe_window_s *wnd;
+  struct nxsvrmsg_openwindow_s outmsg;
   int ret;
-
-#ifdef CONFIG_DEBUG
-  if (!handle || !cb)
-    {
-      errno = EINVAL;
-      return NULL;
-    }
-#endif
 
   /* Pre-allocate the window structure */
 
@@ -111,13 +103,17 @@ NXWINDOW nx_openwindow(NXHANDLE handle, FAR const struct nx_callback_s *cb,
       return NULL;
     }
 
-  /* Then let nxfe_constructwindow do the rest */
+  /* Request initialization the new window from the server */
 
-  ret = nxfe_constructwindow(handle, wnd, cb, arg);
+  outmsg.msgid = NX_SVRMSG_OPENWINDOW;
+  outmsg.conn  = conn;
+  outmsg.wnd   = wnd;
+
+  ret = mq_send(conn->cwrmq, &outmsg, sizeof(struct nxsvrmsg_openwindow_s), NX_SVRMSG_PRIO);
   if (ret < 0)
     {
-      /* An error occurred, the window has been freed */
-
+      gdbg("mq_send failed: %d\n", errno);
+      free(wnd);
       return NULL;
     }
 

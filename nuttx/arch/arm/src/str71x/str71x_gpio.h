@@ -48,36 +48,26 @@
  * Definitions
  ************************************************************************************/
 
-/* GPIO register offsets ************************************************************/
+/* GPIO registers *******************************************************************/
 
-#define STR71X_GPIO_PC0_OFFSET (0x0000)  /* 16-bits wide */
-#define STR71X_GPIO_PC1_OFFSET (0x0004)  /* 16-bits wide */
-#define STR71X_GPIO_PC2_OFFSET (0x0008)  /* 16-bits wide */
-#define STR71X_GPIO_PD_OFFSET  (0x000c)  /* 16-bits wide */
-
-/* GPIO register addresses **********************************************************/
-
-#define STR71X_GPIO_PC0(b)     ((b) + STR71X_GPIO_PC0_OFFSET)
-#define STR71X_GPIO_PC1(b)     ((b) + STR71X_GPIO_PC1_OFFSET)
-#define STR71X_GPIO_PC2(b)     ((b) + STR71X_GPIO_PC2_OFFSET)
-#define STR71X_GPIO_PD(b)      ((b) + STR71X_GPIO_PD_OFFSET)
-
-#define STR71X_GPIO0_PC0       (STR71X_GPIO0_BASE + STR71X_GPIO_PC0_OFFSET)
-#define STR71X_GPIO0_PC1       (STR71X_GPIO0_BASE + STR71X_GPIO_PC1_OFFSET)
-#define STR71X_GPIO0_PC2       (STR71X_GPIO0_BASE + STR71X_GPIO_PC2_OFFSET)
-#define STR71X_GPIO0_PD        (STR71X_GPIO0_BASE + STR71X_GPIO_PD_OFFSET)
-
-#define STR71X_GPIO1_PC0       (STR71X_GPIO1_BASE + STR71X_GPIO_PC0_OFFSET)
-#define STR71X_GPIO1_PC1       (STR71X_GPIO1_BASE + STR71X_GPIO_PC1_OFFSET)
-#define STR71X_GPIO1_PC2       (STR71X_GPIO1_BASE + STR71X_GPIO_PC2_OFFSET)
-#define STR71X_GPIO1_PD        (STR71X_GPIO1_BASE + STR71X_GPIO_PD_OFFSET)
-
-#define STR71X_GPIO2_PC0       (STR71X_GPIO2_BASE + STR71X_GPIO_PC0_OFFSET)
-#define STR71X_GPIO2_PC1       (STR71X_GPIO2_BASE + STR71X_GPIO_PC1_OFFSET)
-#define STR71X_GPIO2_PC2       (STR71X_GPIO2_BASE + STR71X_GPIO_PC2_OFFSET)
-#define STR71X_GPIO2_PD        (STR71X_GPIO2_BASE + STR71X_GPIO_PD_OFFSET)
+#define STR71X_GPIO_PC0       (STR71X_GPIO_BASE + 0x0000)  /* 16-bits wide */
+#define STR71X_GPIO_PC1       (STR71X_GPIO_BASE + 0x0004)  /* 16-bits wide */
+#define STR71X_GPIO_PC2       (STR71X_GPIO_BASE + 0x0008)  /* 16-bits wide */
+#define STR71X_GPIO_PD        (STR71X_GPIO_BASE + 0x000c)  /* 16-bits wide */
 
 /* Register bit settings ************************************************************/
+
+#define STR71X_GPIO_HIAINTRI  (0)  /* High impedance analog input tristate   */
+#define STR71X_GPIO_INTRITTL  (1)  /* Tristate ttl input                     */
+#define STR71X_GPIO_INTRICMOS (2)  /* Tristate cmos input                    */
+#define STR71X_GPIO_IPUPDWP   (3)  /* Pull-up/pull-down weak push pull input */
+#define STR71X_GPIO_OUTOD     (4)  /* Open drain output                      */
+#define STR71X_GPIO_OUTPP     (5)  /* Push pull output                       */
+#define STR71X_GPIO_AFOD      (6)  /* Open drain output alternate function   */
+#define STR71X_GPIO_AFPP      (7)  /* Push-pull output alternate function    */
+
+#define STR71X_GPIO_LSB       (0x00)
+#define STR71X_GPIO_MSB       (0x08)
 
 /************************************************************************************
  * Public Types

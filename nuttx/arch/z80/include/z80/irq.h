@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/z80/include/z80/irq.h
+ * arch/z80/irq.h
  * arch/chip/irq.h
  *
  *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
@@ -51,17 +51,8 @@
 
 /* Z80 Interrupts */
 
-#define Z80_RST0         (0)
-#define Z80_RST1         (1)
-#define Z80_RST2         (2)
-#define Z80_RST3         (3)
-#define Z80_RST4         (4)
-#define Z80_RST5         (5)
-#define Z80_RST6         (6)
-#define Z80_RST7         (7)
-
-#define Z80_IRQ_SYSTIMER Z80_RST7
-#define NR_IRQS          (8)
+#define Z80_IRQ_SYSTIMER (1)
+#define NR_IRQS          (1)
 
 /* IRQ Stack Frame Format
  *
@@ -69,15 +60,15 @@
  * in the TCB to many context switches.
  */
 
-#define XCPT_I               (0) /* Offset 0: Saved I w/interrupt state in carry */
-#define XCPT_BC              (1) /* Offset 1: Saved BC register */
-#define XCPT_DE              (2) /* Offset 2: Saved DE register */
-#define XCPT_IX              (3) /* Offset 3: Saved IX register */
-#define XCPT_IY              (4) /* Offset 4: Saved IY register */
-#define XCPT_SP              (5) /* Offset 5: Offset to SP at time of interrupt */
-#define XCPT_HL              (6) /* Offset 6: Saved HL register */
-#define XCPT_AF              (7) /* Offset 7: Saved AF register */
-#define XCPT_PC              (8) /* Offset 8: Offset to PC at time of interrupt */
+#define XCPT_I               (0) /* Saved I w/interrupt state in carry */
+#define XCPT_AF              (1) /* Saved AF register */
+#define XCPT_BC              (2) /* Saved BC register */
+#define XCPT_DE              (3) /* Saved DE register */
+#define XCPT_HL              (4) /* Saved HL register */
+#define XCPT_IX              (5) /* Saved IX register */
+#define XCPT_IY              (6) /* Saved IY register */
+#define XCPT_SP              (7) /* Offset to SP at time of interrupt */
+#define XCPT_PC              (8) /* Offset to PC at time of interrupt */
 
 #define XCPTCONTEXT_REGS     (9)
 #define XCPTCONTEXT_SIZE     (2 * XCPTCONTEXT_REGS)
@@ -86,31 +77,25 @@
  * Public Types
  ****************************************************************************/
 
-#ifndef __ASSEMBLY__
-
 /* This is the the type of the register save array */
 
 typedef uint16 chipreg_t;
 
 /* This struct defines the way the registers are stored. */
 
+#ifndef __ASSEMBLY__
 struct xcptcontext
 {
   /* Register save area */
 
-  chipreg_t regs[XCPTCONTEXT_REGS];
+  uint16 regs[XCPTCONTEXT_REGS];
 
   /* The following function pointer is non-zero if there
    * are pending signals to be processed.
    */
 
 #ifndef CONFIG_DISABLE_SIGNALS
-  CODE void *sigdeliver; /* Actual type is sig_deliver_t */
-
-  /* The following retains that state during signal execution */
-
-  uint16 saved_pc;	/* Saved return address */
-  uint16 saved_i;	/* Saved interrupt state */
+  void *sigdeliver; /* Actual type is sig_deliver_t */
 #endif
 };
 #endif
@@ -135,8 +120,8 @@ extern "C" {
 #define EXTERN extern
 #endif
 
-EXTERN irqstate_t irqsave(void) __naked;
-EXTERN void       irqrestore(irqstate_t flags) __naked;
+EXTERN irqstate_t irqsave(void);
+EXTERN void       irqrestore(irqstate_t flags);
 
 #undef EXTERN
 #ifdef __cplusplus

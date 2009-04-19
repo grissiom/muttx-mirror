@@ -63,6 +63,7 @@
  * Global Variables
  **********************************************************************/
 
+/* See pas.h */
 extern poffHandle_t poffHandle; /* Handle to POFF object */
 extern FILE *lstFile;           /* LIST file pointer */
 extern sint16 level;            /* Static nesting level */

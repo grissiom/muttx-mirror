@@ -35,9 +35,7 @@
 
 include ${TOPDIR}/.config
 
-HOSTOS			= ${shell uname -o}
-
-ifeq ($(CONFIG_DEBUG),y)
+ifneq ("${CONFIG_DEBUG}","y")
   ARCHOPTIMIZATION	= -g
 else
   ARCHOPTIMIZATION	= -O2
@@ -52,7 +50,6 @@ ARCHSCRIPT		=
 
 CROSSDEV		=
 CC			= $(CROSSDEV)gcc
-CPP			= $(CROSSDEV)gcc -E
 LD			= $(CROSSDEV)ld
 AR			= $(CROSSDEV)ar rcs
 NM			= $(CROSSDEV)nm
@@ -61,26 +58,15 @@ OBJDUMP			= $(CROSSDEV)objdump
 
 CFLAGS			= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) \
 			  $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) -pipe
-CPPFLAGS		= $(ARCHINCLUDES) $(ARCHDEFINES)
 AFLAGS			= $(CFLAGS) -D__ASSEMBLY__
 
 OBJEXT			= .o
 LIBEXT			= .a
-
-ifeq ($(HOSTOS),Cygwin)
-  EXEEXT		= .exe
-else
-  EXEEXT		=
-endif
+EXEEXT			=
 
 ifeq ("${CONFIG_DEBUG}","y")
   LDFLAGS		+= -g
 endif
-
-define PREPROCESS
-	@echo "CPP: $1->$2"
-	@$(CPP) $(CPPFLAGS) $1 -o $2
-endef
 
 define COMPILE
 	@echo "CC: $1"

@@ -43,8 +43,6 @@
 #include <errno.h>
 #include <debug.h>
 
-#include <nuttx/nxglib.h>
-
 #include "nxbe.h"
 #include "nxfe.h"
 

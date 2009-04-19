@@ -34,8 +34,8 @@
  *
  ************************************************************************************/
 
-#ifndef __ARCH_Z80_SRC_EZ80_CHIP_H
-#define __ARCH_Z80_SRC_EZ80_CHIP_H
+#ifndef __EZ80_CHIP_H
+#define __EZ80_CHIP_H
 
 /************************************************************************************
  * Included Files
@@ -45,29 +45,42 @@
  * Definitions
  ************************************************************************************/
 
-/* Bits in the Z80 FLAGS register ***************************************************/
+/* Hexadecimal Representation *******************************************************/
 
-#define EZ80_C_FLAG            0x01        /* Bit 0: Carry flag */
-#define EZ80_N_FLAG            0x02        /* Bit 1: Add/Subtract flag  */
-#define EZ80_PV_FLAG           0x04        /* Bit 2: Parity/Overflow flag */
-#define EZ80_H_FLAG            0x10        /* Bit 4: Half carry flag */
-#define EZ80_Z_FLAG            0x40        /* Bit 5: Zero flag */
-#define EZ80_S_FLAG            0x80        /* Bit 7: Sign flag */
-
-/* Include chip-specific regiser definitions */
-
-#if defined(CONFIG_ARCH_CHIP_EZ80F91)
-#  include "ez80f91.h"
-#elif defined(CONFIG_ARCH_CHIP_EZ80F92)
-#  include "ez80f92.h"
-#elif defined(CONFIG_ARCH_CHIP_EZ80F93)
-#  include "ez80f93.h"
+#ifdef __ASSEMBLY__
+# define _HX(h)   %##h
 #else
-#  error "Register definitions not provided for this chip"
+# define _HX(h)   0x##h
+#endif
+
+/* Memory Map */
+/* Special Function Registers *******************************************************
+ */
+
+/* Timer Register Bit Definitions ***************************************************/
+
+
+/* UART Register Offsets *************************************************************/
+
+/* UART0/1 Base Register Addresses **************************************************/
+
+/* UART Register Bit Definitions ****************************************************/
+
+/* Register access macros ***********************************************************/
+
+#ifndef __ASSEMBLY__
+
+# define getreg8(a)           (*(volatile ubyte *)(a))
+# define putreg8(v,a)         (*(volatile ubyte *)(a) = (v))
+# define getreg32(a)          (*(volatile uint32 *)(a))
+# define putreg32(v,a)        (*(volatile uint32 *)(a) = (v))
+# define getreg(a)   getreg16(1)
+# define putreg(v,a) putreg16(v,a)
+
 #endif
 
 /************************************************************************************
- * Public Data
+ * Public Function Prototypes
  ************************************************************************************/
 
 #ifndef __ASSEMBLY__
@@ -78,16 +91,10 @@ extern "C" {
 #define EXTERN extern
 #endif
 
-EXTERN uint32 ez80_systemclock;
-
-/************************************************************************************
- * Public Function Prototypes
- ************************************************************************************/
-
- #undef EXTERN
+#undef EXTERN
 #ifdef __cplusplus
 }
 #endif
 #endif
 
-#endif  /* __ARCH_Z80_SRC_EZ80_CHIP_H */
+#endif  /* __EZ80_CHIP_H */

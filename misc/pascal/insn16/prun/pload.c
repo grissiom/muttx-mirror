@@ -38,10 +38,10 @@
  ****************************************************************************/
 
 #include <stdio.h>
-#include <stdlib.h>
 #include <errno.h>
 
 #include "keywords.h"
+#include "pmach.h"
 #include "pedefs.h"
 #include "pofflib.h"
 #include "perr.h"
@@ -75,7 +75,7 @@
  * Public Functions
  ****************************************************************************/
 
-FAR struct pexec_s *pload(const char *filename, addr_t varsize, addr_t strsize)
+FAR struct pexec_s *pload(const char *filename, addrType varsize, addrType strsize)
 {
   struct pexec_attr_s attr;
   struct pexec_s *st;

@@ -1,7 +1,7 @@
 /****************************************************************************
- * fs/fat/fs_fat32.h
+ * fs_fat32.h
  *
- *   Copyright (C) 2007, 200, 2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,8 +33,8 @@
  *
  ****************************************************************************/
 
-#ifndef __FS_FAT_FS_FAT32_H
-#define __FS_FAT_FS_FAT32_H
+#ifndef __FS_FAT_H
+#define __FS_FAT_H
 
 /****************************************************************************
  * Included Files
@@ -63,9 +63,9 @@
 #define BS_RESVDSECCOUNT   14 /*  2@14: Reserved sector count: Usually 32 */
 #define BS_NUMFATS         16 /*  1@16: Number of FAT data structures: always 2 */
 #define BS_ROOTENTCNT      17 /*  2@17: FAT12/16: Must be 0 for FAT32 */
-#define BS_TOTSEC16        19 /*  2@19: FAT12/16: Must be 0, see BS_TOTSEC32 */
+#define BS_TOTSEC16        19 /*  2@19: FAT12/16: Must be 0, see BS32_totsec32 */
 #define BS_MEDIA           21 /*  1@21: Media code: f0, f8, f9-fa, fc-ff */ 
-#define BS_FATSZ16         22 /*  2@22: FAT12/16: Must be 0, see BS_FATSZ32 */
+#define BS_FATSZ16         22 /*  2@22: FAT12/16: Must be 0, see BS32_fatsz32 */
 #define BS_SECPERTRK       24 /*  2@24: Sectors per track geometry value */
 #define BS_NUMHEADS        26 /*  2@26: Number of heads geometry value */
 #define BS_HIDSEC          28 /*  4@28: Count of hidden sectors preceding FAT */
@@ -93,7 +93,7 @@
 #define BS32_BKBOOTSEC     50 /*  2@50: Sector number of boot record. Usually 6  */
                               /* 12@52: Reserved (zero) */
 #define BS32_DRVNUM        64 /*  1@64: Drive number for MSDOS bootstrap */
-                              /*  1@65: Reserved (zero) */
+                              /*  1@65: Reserverd (zero) */
 #define BS32_BOOTSIG       66 /*  1@66: Extended boot signature: 0x29 if following valid */
 #define BS32_VOLID         67 /*  4@67: Volume serial number */
 #define BS32_VOLLAB        71 /* 11@71: Volume label */
@@ -112,36 +112,6 @@
 
 #define BS_SIGNATURE      510 /*  2@510: Valid MBRs have 0x55aa here */
 
-#define BOOT_SIGNATURE16  0xaa55
-#define BOOT_SIGNATURE32  0xaa550000
-
-/* The extended boot signature (BS16/32_BOOTSIG) */
-
-#define EXTBOOT_SIGNATURE 0x29
-
-/****************************************************************************
- * These offsets describes the partition table.
- */
-                              /* 446@0: Generally unused and zero; but may
-                               * include IDM Boot Manager menu entry at 8@394 */
-#define PART_ENTRY1       446 /* 16@446: Partition table, first entry */
-#define PART_ENTRY2       462 /* 16@462: Partition table, second entry */
-                              /* 32@478: Unused, should be zero */
-#define PART_SIGNATURE        /* 2@510: Valid partitions have 0x55aa here */
-
-/****************************************************************************
- * These offsets describes one partition table entry.  NOTE that ent entries
- * are aligned to 16-bit offsets so that the STARTSECTOR and SIZE values are
- * not properly aligned.
- */
-
-#define PART_BOOTINDICATOR  0  /* 1@0:  Boot indicator (0x80: active;0x00:otherwise) */
-#define PART_STARTCHS       1  /* 3@1:  Starting Cylinder/Head/Sector values */
-#define PART_TYPE           4  /* 1@4:  Partition type description */
-#define PART_ENDCHS         5  /* 3@5:  Ending Cylinder/Head/Sector values */
-#define PART_STARTSECTOR    8  /* 4@8:  Starting sector */
-#define PART_SIZE          12  /* 4@12: Partition size (in sectors) */
-
 /****************************************************************************
  * Each FAT directory entry is 32-bytes long.  The following define offsets
  * relative to the beginning of a directory entry.
@@ -159,8 +129,7 @@
 #define DIR_WRTDATE        24 /*  2@24: Date of last write */
 #define DIR_FSTCLUSTLO     26 /*  2@26: LS first cluster number */
 #define DIR_FILESIZE       28 /*  4@28: File size in bytes */
-#define DIR_SIZE           32 /* The size of one directory entry */
-#define DIR_SHIFT           5 /* log2 of DIR_SIZE */
+#define DIR_SIZE           32
 
 /* First byte of the directory name has special meanings: */
 
@@ -185,8 +154,6 @@
 #define SEC_NDXMASK(f)      ((f)->fs_hwsectorsize - 1)
 #define SEC_NSECTORS(f,n)   ((n) / (f)->fs_hwsectorsize)
 
-#define CLUS_NDXMASK(f)     ((f)->fs_fatsecperclus - 1)
-
 /****************************************************************************
  * File system types */
 
@@ -204,45 +171,13 @@
  * These offset describe the FSINFO sector
  */
 
-#define FSI_LEADSIG         0 /*   4@0:   0x41615252  = "RRaA" */
+#define FSI_LEADSIG         0 /*   4@0:   0x41615252 */
                               /* 480@4:   Reserved (zero) */
-#define FSI_STRUCTSIG     484 /*   4@484: 0x61417272 = "rrAa" */
+#define FSI_STRUCTSIG     484 /*   4@484: 0x61417272 */
 #define FSI_FREECOUNT     488 /*   4@488: Last free cluster count on volume */
 #define FSI_NXTFREE       492 /*   4@492: Cluster number of 1st free cluster */
                               /*  12@496: Reserved (zero) */
 #define FSI_TRAILSIG      508 /*   4@508: 0xaa550000 */
-
-/****************************************************************************
- * FAT values
- */
-
-#define FAT_EOF      0x0ffffff8
-#define FAT_BAD      0x0ffffff7
-
-/****************************************************************************
- * Maximum cluster by FAT type.  This is the key value used to distinquish
- * between FAT12, 16, and 32.
- */
-
-/* FAT12: For M$, the calculation is ((1 << 12) - 19).  But we will follow the
- * Linux tradition of allowing slightly more clusters for FAT12.
- */
-
-#define FAT_MAXCLUST12 ((1 << 12) - 16)
-
-/* FAT16: For M$, the calculation is ((1 << 16) - 19). */
-
-#define FAT_MINCLUST16 (FAT_MAXCLUST12 + 1)
-#define FAT_MAXCLUST16 ((1 << 16) - 16)
-
-/* FAT32: M$ reserves the MS 4 bits of a FAT32 FAT entry so only 18 bits are
- * available.  For M$, the calculation is ((1 << 28) - 19).
- */
-
-#define FAT_MINCLUST32  65524
-/* #define FAT_MINCLUST32  (FAT_MAXCLUST16 + 1) */
-#define FAT_MAXCLUST32  ((1 << 28) - 16)
-
 
 /****************************************************************************
  * Access to data in raw sector data */
@@ -273,23 +208,17 @@
 #define MBR_GETBOOTSIG16(p)       UBYTE_VAL(p,BS16_BOOTSIG)
 #define MBR_GETBOOTSIG32(p)       UBYTE_VAL(p,BS32_BOOTSIG)
 
-#define PART1_GETTYPE(p)          UBYTE_VAL(p,PART_ENTRY1+PART_TYPE)
-#define PART2_GETTYPE(p)          UBYTE_VAL(p,PART_ENTRY2+PART_TYPE)
-
 #define DIR_GETATTRIBUTES(p)      UBYTE_VAL(p,DIR_ATTRIBUTES)
 #define DIR_GETNTRES(p)           UBYTE_VAL(p,DIR_NTRES)
 #define DIR_GETCRTTIMETENTH(p)    UBYTE_VAL(p,DIR_CRTTIMETENTH)
 
-#define MBR_PUTSECPERCLUS(p,v)    UBYTE_PUT(p,BS_SECPERCLUS,v)
+#define MBR_PUTSECPERCLUS(p,v)    UBYTE_PUT(p,BS_SECPERCLUS),v)
 #define MBR_PUTNUMFATS(p,v)       UBYTE_PUT(p,BS_NUMFATS,v)
 #define MBR_PUTMEDIA(p,v)         UBYTE_PUT(p,BS_MEDIA,v)
 #define MBR_PUTDRVNUM16(p,v)      UBYTE_PUT(p,BS16_DRVNUM,v)
 #define MBR_PUTDRVNUM32(p,v)      UBYTE_PUT(p,BS32_DRVNUM,v)
 #define MBR_PUTBOOTSIG16(p,v)     UBYTE_PUT(p,BS16_BOOTSIG,v)
 #define MBR_PUTBOOTSIG32(p,v)     UBYTE_PUT(p,BS32_BOOTSIG,v)
-
-#define PART1_PUTTYPE(p,v)        UBYTE_PUT(p,PART_ENTRY1+PART_TYPE,v)
-#define PART2_PUTTYPE(p,v)        UBYTE_PUT(p,PART_ENTRY2+PART_TYPE,v)
 
 #define DIR_PUTATTRIBUTES(p,v)    UBYTE_PUT(p,DIR_ATTRIBUTES,v)
 #define DIR_PUTNTRES(p,v)         UBYTE_PUT(p,DIR_NTRES,v)
@@ -308,21 +237,11 @@
 #define MBR_GETVOLID16(p)          fat_getuint32(UBYTE_PTR(p,BS16_VOLID))
 #define MBR_GETVOLID32(p)          fat_getuint32(UBYTE_PTR(p,BS32_VOLID))
 
-#define PART1_GETSTARTSECTOR(p)    fat_getuint32(UBYTE_PTR(p,PART_ENTRY1+PART_STARTSECTOR))
-#define PART1_GETSIZE(p)           fat_getuint32(UBYTE_PTR(p,PART_ENTRY1+PART_SIZE))
-#define PART2_GETSTARTSECTOR(p)    fat_getuint32(UBYTE_PTR(p,PART_ENTRY2+PART_STARTSECTOR))
-#define PART2_GETSIZE(p)           fat_getuint32(UBYTE_PTR(p,PART_ENTRY2+PART_SIZE))
-
 #define MBR_PUTBYTESPERSEC(p,v)    fat_putuint16(UBYTE_PTR(p,BS_BYTESPERSEC),v)
 #define MBR_PUTROOTENTCNT(p,v)     fat_putuint16(UBYTE_PTR(p,BS_ROOTENTCNT),v)
 #define MBR_PUTTOTSEC16(p,v)       fat_putuint16(UBYTE_PTR(p,BS_TOTSEC16),v)
 #define MBR_PUTVOLID16(p,v)        fat_putuint32(UBYTE_PTR(p,BS16_VOLID),v)
 #define MBR_PUTVOLID32(p,v)        fat_putuint32(UBYTE_PTR(p,BS32_VOLID),v)
-
-#define PART1_PUTSTARTSECTOR(p,v) fat_putuint32(UBYTE_PTR(p,PART_ENTRY1+PART_STARTSECTOR),v)
-#define PART1_PUTSIZE(p,v)        fat_putuint32(UBYTE_PTR(p,PART_ENTRY1+PART_SIZE),v)
-#define PART2_PUTSTARTSECTOR(p,v) fat_putuint32(UBYTE_PTR(p,PART_ENTRY2+PART_STARTSECTOR),v)
-#define PART2_PUTSIZE(p,v)        fat_putuint32(UBYTE_PTR(p,PART_ENTRY2+PART_SIZE),v)
 
 /* But for multi-byte values, the endian-ness of the target vs. the little
  * endian order of the byte stream or alignment of the data within the byte
@@ -349,6 +268,8 @@
 # define MBR_GETBKBOOTSEC(p)       fat_getuint16(UBYTE_PTR(p,BS32_BKBOOTSEC))
 # define MBR_GETSIGNATURE(p)       fat_getuint16(UBYTE_PTR(p,BS_SIGNATURE))
 
+# define MBR_GETPARTSECTOR(s)      fat_getuint32(s)
+
 # define FSI_GETLEADSIG(p)         fat_getuint32(UBYTE_PTR(p,FSI_LEADSIG))
 # define FSI_GETSTRUCTSIG(p)       fat_getuint32(UBYTE_PTR(p,FSI_STRUCTSIG))
 # define FSI_GETFREECOUNT(p)       fat_getuint32(UBYTE_PTR(p,FSI_FREECOUNT))
@@ -373,19 +294,19 @@
 # define FAT_GETFAT16(p,i)         fat_getuint16(UBYTE_PTR(p,i))
 # define FAT_GETFAT32(p,i)         fat_getuint32(UBYTE_PTR(p,i))
 
-# define MBR_PUTRESVDSECCOUNT(p,v) fat_putuint16(UBYTE_PTR(p,BS_RESVDSECCOUNT),v)
-# define MBR_PUTFATSZ16(p,v)       fat_putuint16(UBYTE_PTR(p,BS_FATSZ16),v)
-# define MBR_PUTSECPERTRK(p,v)     fat_putuint16(UBYTE_PTR(p,BS_SECPERTRK),v)
-# define MBR_PUTNUMHEADS(p,v)      fat_putuint16(UBYTE_PTR(p,BS_NUMHEADS),v)
-# define MBR_PUTHIDSEC(p,v)        fat_putuint32(UBYTE_PTR(p,BS_HIDSEC),v)
-# define MBR_PUTTOTSEC32(p,v)      fat_putuint32(UBYTE_PTR(p,BS_TOTSEC32),v)
-# define MBR_PUTFATSZ32(p,v)       fat_putuint32(UBYTE_PTR(p,BS32_FATSZ32),v)
-# define MBR_PUTEXTFLAGS(p,v)      fat_putuint16(UBYTE_PTR(p,BS32_EXTFLAGS),v)
-# define MBR_PUTFSVER(p,v)         fat_putuint16(UBYTE_PTR(p,BS32_FSVER),v)
-# define MBR_PUTROOTCLUS(p,v)      fat_putuint32(UBYTE_PTR(p,BS32_ROOTCLUS),v)
-# define MBR_PUTFSINFO(p,v)        fat_putuint16(UBYTE_PTR(p,BS32_FSINFO),v)
-# define MBR_PUTBKBOOTSEC(p,v)     fat_putuint16(UBYTE_PTR(p,BS32_BKBOOTSEC),v)
-# define MBR_PUTSIGNATURE(p,v)     fat_putuint16(UBYTE_PTR(p,BS_SIGNATURE),v)
+# define MBR_PUTRESVDSECCOUNT(p,v) fat_putuint16(UBYTE_PTR(p,BS_RESVDSECCOUNT,v))
+# define MBR_PUTFATSZ16(p,v)       fat_putuint16(UBYTE_PTR(p,BS_FATSZ16,v))
+# define MBR_PUTSECPERTRK(p,v)     fat_putuint16(UBYTE_PTR(p,BS_SECPERTRK,v))
+# define MBR_PUTNUMHEADS(p,v)      fat_putuint16(UBYTE_PTR(p,BS_NUMHEADS,v))
+# define MBR_PUTHIDSEC(p,v)        fat_putuint32(UBYTE_PTR(p,BS_HIDSEC,v))
+# define MBR_PUTTOTSEC32(p,v)      fat_putuint32(UBYTE_PTR(p,BS_TOTSEC32,v))
+# define MBR_PUTFATSZ32(p,v)       fat_putuint32(UBYTE_PTR(p,BS32_FATSZ32,v))
+# define MBR_PUTEXTFLAGS(p,v)      fat_putuint16(UBYTE_PTR(p,BS32_EXTFLAGS,v))
+# define MBR_PUTFSVER(p,v)         fat_putuint16(UBYTE_PTR(p,BS32_FSVER,v))
+# define MBR_PUTROOTCLUS(p,v)      fat_putuint32(UBYTE_PTR(p,BS32_ROOTCLUS,v))
+# define MBR_PUTFSINFO(p,v)        fat_putuint16(UBYTE_PTR(p,BS32_FSINFO,v))
+# define MBR_PUTBKBOOTSEC(p,v)     fat_putuint16(UBYTE_PTR(p,BS32_BKBOOTSEC,v))
+# define MBR_PUTSIGNATURE(p,v)     fat_getuint16(UBYTE_PTR(p,BS_SIGNATURE),v)
 
 # define FSI_PUTLEADSIG(p,v)       fat_putuint32(UBYTE_PTR(p,FSI_LEADSIG),v)
 # define FSI_PUTSTRUCTSIG(p,v)     fat_putuint32(UBYTE_PTR(p,FSI_STRUCTSIG),v)
@@ -430,6 +351,8 @@
 # define MBR_GETFSINFO(p)          UINT16_VAL(p,BS32_FSINFO)
 # define MBR_GETBKBOOTSEC(p)       UINT16_VAL(p,BS32_BKBOOTSEC)
 # define MBR_GETSIGNATURE(p)       UINT16_VAL(p,BS_SIGNATURE)
+
+# define MBR_GETPARTSECTOR(s)      (*((uint32*)(s)))
 
 # define FSI_GETLEADSIG(p)         UINT32_VAL(p,FSI_LEADSIG)
 # define FSI_GETSTRUCTSIG(p)       UINT32_VAL(p,FSI_STRUCTSIG)
@@ -519,7 +442,7 @@ struct fat_mountpt_s
   size_t   fs_fsinfo;              /* MBR: Sector number of FSINFO sector */
   size_t   fs_currentsector;       /* The sector number buffered in fs_buffer */
   uint32   fs_nclusters;           /* Maximum number of data clusters */
-  uint32   fs_nfatsects;           /* MBR: Count of sectors occupied by one fat */
+  uint32   fs_fatsize;             /* MBR: Count of sectors occupied by one fat */
   uint32   fs_fattotsec;           /* MBR: Total count of sectors on the volume */
   uint32   fs_fsifreecount;        /* FSI: Last free cluster count on volume */
   uint32   fs_fsinextfree;         /* FSI: Cluster number of 1st free cluster */
@@ -550,10 +473,10 @@ struct fat_file_s
   uint16   ff_dirindex;            /* Index into ff_dirsector to directory entry */
   uint32   ff_currentcluster;      /* Current cluster being accessed */
   size_t   ff_dirsector;           /* Sector containing the directory entry */
-  off_t    ff_size;                /* Size of the file in bytes */
+  size_t   ff_position;            /* File position for read/write/seek in bytes */
+  size_t   ff_size;                /* Size of the file in bytes */
   size_t   ff_startcluster;        /* Start cluster of file on media */
-  size_t   ff_currentsector;       /* Current sector being operated on */
-  size_t   ff_cachesector;         /* Current sector in the file buffer */
+  size_t   ff_currentsector;       /* Current sector in the file buffer */
   ubyte   *ff_buffer;              /* File buffer (for partial sector accesses) */
 };
 
@@ -565,7 +488,7 @@ struct fat_dirinfo_s
 #ifdef CONFIG_FAT_LCNAMES
   ubyte    fd_ntflags;             /* NTRes lower case flags */
 #endif
-  struct fs_fatdir_s dir;          /* Used with opendir, readdir, etc. */
+  struct fs_fatdir_s dir;        /* Used with opendir, readdir, etc. */
   ubyte   *fd_entry;               /* A pointer to the raw 32-byte entry */
 };
 
@@ -574,7 +497,7 @@ struct fat_dirinfo_s
  ****************************************************************************/
 
 /****************************************************************************
- * Public Function Prototypes
+ * Pulblic Function Prototypes
  ****************************************************************************/
 
 #undef EXTERN
@@ -616,7 +539,7 @@ EXTERN int    fat_hwwrite(struct fat_mountpt_s *fs, ubyte *buffer,
 
 /* Cluster / cluster chain access helpers */
 
-EXTERN ssize_t fat_cluster2sector(struct fat_mountpt_s *fs,  uint32 cluster);
+EXTERN ssize_t fat_cluster2sector(struct fat_mountpt_s *fs,  uint32 cluster );
 EXTERN ssize_t fat_getcluster(struct fat_mountpt_s *fs, uint32 clusterno);
 EXTERN int    fat_putcluster(struct fat_mountpt_s *fs, uint32 clusterno,
                              size_t startsector);
@@ -650,13 +573,12 @@ EXTERN int    fat_ffcacheinvalidate(struct fat_mountpt_s *fs, struct fat_file_s 
 
 /* FSINFO sector support */
 
-EXTERN int    fat_updatefsinfo(struct fat_mountpt_s *fs);
-EXTERN int    fat_nfreeclusters(struct fat_mountpt_s *fs, size_t *pfreeclusters);
-EXTERN int    fat_currentsector(struct fat_mountpt_s *fs, struct fat_file_s *ff, off_t position);
+EXTERN int fat_updatefsinfo(struct fat_mountpt_s *fs);
+EXTERN int fat_nfreeclusters(struct fat_mountpt_s *fs, size_t *pfreeclusters);
 
 #undef EXTERN
 #if defined(__cplusplus)
 }
 #endif
 
-#endif /* __FS_FAT_FS_FAT32_H */
+#endif /* __FS_FAT32_H */

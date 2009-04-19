@@ -1,5 +1,5 @@
 ############################################################################
-# configs/z16f2800100zcog/Makefile
+# board/Makefile
 #
 #   Copyright (C) 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -35,50 +35,45 @@
 
 -include $(TOPDIR)/Make.defs
 
-ARCHSRCDIR	= $(TOPDIR)/arch/$(CONFIG_ARCH)/src
-WARCHSRCDIR	= ${shell cygpath -w $(ARCHSRCDIR)}
-USRINCLUDES	= -usrinc:'.;$(WTOPDIR)\sched;$(WARCHSRCDIR);$(WARCHSRCDIR)\common'
-INCLUDES	= $(ARCHSTDINCLUDES) $(USRINCLUDES)
-CFLAGS		= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(INCLUDES) $(ARCHDEFINES)
+MKDEP 		= $(TOPDIR)/tools/mkdeps.sh
+CFLAGS		+= -I$(TOPDIR)/sched
 
 ASRCS		= 
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
-CSRCS		= z16f_lowinit.c z16f_leds.c
+CSRCS		= 
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
 SRCS		= $(ASRCS) $(CSRCS)
 OBJS		= $(AOBJS) $(COBJS)
 
+ARCH_SRCDIR	= $(TOPDIR)/arch/$(CONFIG_ARCH)/src
+CFLAGS		+= -I$(ARCH_SRCDIR)/chip -I$(ARCH_SRCDIR)/common
 
 all: libboard$(LIBEXT)
 
-$(ASRCS) $(HEAD_ASRC): %$(ASMEXT): %.S
-	@$(CPP) $(CPPFLAGS) $< -o $@.tmp
-	@cat $@.tmp | sed -e "s/^#/;/g" > $@
-	@rm $@.tmp
-
-$(AOBJS): %$(OBJEXT): %$(ASMEXT)
-	$(call ASSEMBLE, $<, $@)
+$(AOBJS): %$(OBJEXT): %.S
+	$(CC) -c $(CFLAGS) -D__ASSEMBLY__ $< -o $@
 
 $(COBJS) $(LINKOBJS): %$(OBJEXT): %.c
-	$(call COMPILE, $<, $@)
+	$(CC) -c $(CFLAGS) $< -o $@
 
 libboard$(LIBEXT): $(OBJS)
-	@( for obj in $(OBJS) ; do \
-		$(call ARCHIVE, $@, $${obj}); \
+	( for obj in $(OBJS) ; do \
+		$(AR) $@ $${obj} || \
+			{ echo "$(AR) $@ $obj FAILED!" ; exit 1 ; } ; \
 	done ; )
 
 .depend: Makefile $(SRCS)
-	@$(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
-	@touch $@
+	$(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+	touch $@
 
 depend: .depend
 
 clean:
-	@rm -f libboard$(LIBEXT) *~ .*.swp
-	$(call CLEAN)
+	rm -f libboard$(LIBEXT) *~
+	if [ ! -z "$(OBJEXT)" ]; then rm -f *$(OBJEXT); fi
 
 distclean: clean
-	@rm -f Make.dep .depend
+	rm -f Make.dep .depend
 
 -include Make.dep

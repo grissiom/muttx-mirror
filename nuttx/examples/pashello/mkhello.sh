@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 ############################################################################
-# examples/pashello/mkhello.sh
+# mkhello.sh
 #
 #   Copyright (C) 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -44,7 +44,6 @@ PLINK=${BINDIR}/plink
 PRUN=${BINDIR}/prun
 
 PASFILENAME=hello.pas
-OUFILE=hello.h
 STRSTKSZ=1024
 
 function sanity_check ()
@@ -128,14 +127,8 @@ function test_hello ()
 	fi
 }
 
-function make_include ()
-{
-	xxd -i hello.pex >hello.h
-}
-
 sanity_check
 compile_hello
 rm *.o *.o1 *.lst *.err
 test_hello
-make_include
 

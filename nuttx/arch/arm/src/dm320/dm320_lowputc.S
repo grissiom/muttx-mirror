@@ -1,8 +1,7 @@
 /**************************************************************************
- * arch/arm/src/dm320/dm320_lowputc.S
- * arch/arm/src/chip/dm320_lowputc.S
+ * dm320/dm320_lowputc.S
  *
- *   Copyright (C) 2007-2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -15,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -85,10 +84,10 @@
 up_lowputc:
 	/* On entry, r0 holds the character to be printed */
 
-#ifdef CONFIG_UART1_SERIAL_CONSOLE
-	ldr	r2, =DM320_UART1_REGISTER_BASE	/* r2=UART1 base */
-#else
+#ifdef CONFIG_UART0_SERIAL_CONSOLE
 	ldr	r2, =DM320_UART0_REGISTER_BASE	/* r2=UART0 base */
+#else
+	ldr	r2, =DM320_UART1_REGISTER_BASE	/* r2=UART1 base */
 #endif
 
 	/* Poll the TX fifo trigger level bit of the UART_SSR

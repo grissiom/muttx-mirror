@@ -1,5 +1,5 @@
 /************************************************************************************
- * arch/sh/src/m16c/m16c_head.S
+ * arch/sh/src/m16c/chip.h
  *
  *	 Copyright (C) 2009 Gregory Nutt. All rights reserved.
  *	 Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -39,7 +39,6 @@
 
 #include <nuttx/config.h>
 #include "chip.h"
-#include "up_internal.h"
 
 /************************************************************************************
  * Pre-processor Definitions
@@ -49,21 +48,39 @@
  * Macro Definitions
  ************************************************************************************/
 
-/*****************************************************************************
- * Name: showprogress
- *
- * Description:
- *   Print a character on the UART to show boot status.
- *
- *****************************************************************************/
+/* Zero a block of memory */
 
-	.macro	showprogress, code
-#ifdef CONFIG_DEBUG
-	.globl	_up_lowputc
-	mov.b	r#\code1l		/* Character to print */
-	jsr.a	_up_lowputc		/* Print it */
-#endif
+ 	.macro	m16c_bzero, start, end
+	mov.b	#0x00, R0L
+	mov.w	#(\start & 0x0ffff), A1
+	mov.w	#(\end & 0x0ffff), R3
+	sub.w	A1, R3
+	sstr.b	
 	.endm
+
+/* Copy a block of memory */
+
+	.macro	m16c_memcpy, dest, src, end
+	mov.w	#(\dest & 0x0ffff),A0
+	mov.b	#(\dest >> 16), R1H
+	mov.w	#\src, A1
+	mov.w	#(\end & 0x0ffff), R3
+	sub.w	A1, R3
+	smovf.b
+	.endm
+
+/* Special page vectors. This macro puts the jump address of	
+ * functions defined as special page into the special page vector table.
+ * See example calls below and see the M16C Software Manual or NC30
+ * manual for more information on special page vectors.
+ */
+#if 0
+ 	.macro	m16c_special, num
+	.org	0x0ffffe-(\num*2)
+	.globl	__SPECIAL_\num
+	.word	__SPECIAL_\num	& 0x0ffff
+	.endm
+#enif
 
 /************************************************************************************
  * Data
@@ -73,90 +90,249 @@
  * 
  * 0x00400 - DATA		Size: Determined by linker
  *           BSS		Size: Determined by linker
- *           Interrupt stack	Size: CONFIG_ARCH_INTERRUPTSTACK
  *           Idle stack		Size: CONFIG_IDLETHREAD_STACKSIZE
+ *           Interrupt stack	Size: CONFIG_M16C_ISTACKSIZE
  *           Heap		Size: Everything remaining
  * 0x00bff - (end+1)
  */
 
-	.section .rodata
-	.globl	_g_snbss
-	.type	_g_snbss, object
-_g_snbss:
-	.word	_g_snbss
-	.size	_g_snbss, .-_g_snbss
+	.data
+	.globl	_g_stackbase
+	.type	_g_stackbase, object
+_g_stackbase:
+	.word	_enbss
+	.size	_g_heapbase, .-_g_heapbase
+	.size	_g_istackbase, .-_g_istackbase
 
-	.globl	_g_enbss
-	.type	_g_enbss, object
-_g_enbss:
-	.word	_g_enbss
-	.size	_g_enbss, .-_g_enbss
+	.globl	_g_istackbase
+	.type	_g_istackbase, object
+_g_istackbase:
+	.word	_enbss+CONFIG_IDLETHREAD_STACKSIZE-4
+	.size	_g_istackbase, .-_g_istackbase
 
-	.globl	_g_sndata
-	.type	_g_sndata, object
-_g_sndata:
-	.word	_g_sndata
-	.size	_g_sndata, .-_g_sndata
 
-	.globl	_g_endata
-	.type	_g_endata, object
-_g_endata:
-	.word	_g_endata
-	.size	_g_endata, .-_g_endata
-
-	.globl	_g_enronly
-	.type	_g_enronly, object
-_g_enronly:
-	.long	_g_enronly
-	.size	_g_enronly, .-_g_efronly
-
-#ifdef CONFIG_M16C_HAVEFARRAM
-	.globl	_g_sfbss
-	.type	_g_sfbss, object
-_g_sfbss:
-	.long	_g_sfbss
-	.size	_g_sfbss, .-_g_sfbss
-
-	.globl	_g_efbss
-	.type	_g_efbss, object
-_g_efbss:
-	.long	_g_efbss
-	.size	_g_efbss, .-_g_efbss
-
-	.globl	_g_sfdata
-	.type	_g_sfdata, object
-_g_sfdata:
-	.long	_g_sfdata
-	.size	_g_sfdata, .-_g_sfdata
-
-	.globl	_g_efdata
-	.type	_g_efdata, object
-_g_efdata:
-	.long	_g_efdata
-	.size	_g_efdata, .-_g_efdata
-
-	.globl	_g_efronly
-	.type	_g_efronly, object
-_g_efronly:
-	.long	_g_efronly
-	.size	_g_efronly, .-_g_efronly
-#endif
-	.globl	_g_svarvect
-	.type	_g_svarvect, object
-_g_svarvect:
-	.long	_svarvect
-	.size	_g_svarvect, .-_g_svarvect
-
+ * The heap extends from _g_heapbase to the end of RAM.
+ */
 	.globl	_g_heapbase
 	.type	_g_heapbase, object
 _g_heapbase:
-	.long	_enbss+CONFIG_ARCH_INTERRUPTSTACK+CONFIG_IDLETHREAD_STACKSIZE
+	.word	_enbss+CONFIG_IDLETHREAD_STACKSIZE+CONFIG_M16C_ISTACKSIZE
 	.size	_g_heapbase, .-_g_heapbase
+
+/************************************************************************************
+ * Interrupt Vectors
+ ************************************************************************************/
+
+/* Variable vector section */
+
+	.section varvects			/* Variable vector table */
+	.globl	_m16c_unexpected_isr
+	.globl	_m16c_brk_isr
+	.long	_m16c_brk_isr			/* ffd00: BRK instruction */
+	.long	0xffffffff			/* ffd04 */
+	.long	0xffffffff			/* ffd08 */
+	.long	0xffffffff			/* ffd0c */
+	.globl	_m16c_int3_isr
+	.long	_m16c_int3_isr			/* ffd10: INT3 */
+#ifdef CONFIG_M16C_SWINTS
+	.globl	_m16c_swint5_isr
+	.long	_m16c_swint5_isr		/* ffd14: S/W interrupt 5 */
+	.globl	_m16c_swint6_isr
+	.long	_m16c_swint6_isr		/* ffd18: S/W interrupt 6 */
+	.globl	_m16c_swint7_isr
+	.long	_m16c_swint7_isr		/* ffd1c: S/W interrupt 7 */
+#else
+	.long	_m16c_unexpected_isr		/* ffd14: Reserved */
+	.long	_m16c_unexpected_isr		/* ffd18: Reserved */
+	.long	_m16c_unexpected_isr		/* ffd1c: Reserved */
+#endif
+	.globl	_m16c_int5_isr
+	.long	_m16c_int5_isr			/* ffd20: INT5 */
+	.globl	_m16c_int4_isr
+	.long	_m16c_int4_isr			/* ffd24: INT4 */
+	.globl	_m16c_uart2bcd_isr
+	.long	_m16c_uart2bcd_isr		/* ffd28: UART2 bus collision detection */
+	.globl	_m16c_dma0_isr
+	.long	_m16c_dma0_isr			/* ffd2c: DMA0 */
+	.globl	_m16c_dma1_isr
+	.long	_m16c_dma1_isr			/* ffd30: DMA1 */
+	.globl	_m16c_keyinp_isr
+	.long	_m16c_keyinp_isr		/* ffd34: Key input interrupt */
+	.globl	_m16c_adc_isr
+	.long	_m16c_adc_isr			/* ffd38: A-D */
+	.globl	_m16c_uart2xmitnack2_isr
+	.long	_m16c_uart2xmitnack2_isr	/* ffd3c UART2 transmit/NACK2 */
+	.globl	_m16c_uart2rcvack2_isr
+	.long	_m16c_uart2rcvack2_isr		/* ffd40: UART2 receive/ACK2 */
+	.globl	_m16c_uart0xmit_isr
+	.long	_m16c_uart0xmit_isr		/* ffd44: UART0 transmit */
+	.globl	_m16c_uart0rcv_isr
+	.long	_m16c_uart0rcv_isr		/* ffd48: UART0 receive */
+	.globl	_m16c_uart1xmit_isr
+	.long	_m16c_uart1xmit_isr		/* ffd4c: UART1 transmit */
+	.globl	_m16c_uart1rcv_isr
+	.long	_m16c_uart1rcv_isr		/* ffd50: UART1 receive */
+	.globl	_m16c_tmra0_isr
+	.long	_m16c_tmra0_isr			/* ffd54: Timer A0 */
+	.globl	_m16c_tmra1_isr
+	.long	_m16c_tmra1_isr			/* ffd58: Timer A1 */
+	.globl	_m16c_tmra2_isr
+	.long	_m16c_tmra2_isr			/* ffd5c: Timer A2 */
+	.globl	_m16c_tmra3_isr
+	.long	_m16c_tmra3_isr			/* ffd60: Timer A3 */
+	.globl	_m16c_tmra4_isr
+	.long	_m16c_tmra4_isr			/* ffd64: Timer A4 */
+	.globl	_m16c_tmrb0_isr
+	.long	_m16c_tmrb0_isr			/* ffd68: Timer B0 */
+	.globl	_m16c_tmrb1_isr
+	.long	_m16c_tmrb1_isr			/* ffd6c: Timer B1 */
+	.globl	_m16c_tmrb2_isr
+	.long	_m16c_tmrb2_isr			/* ffd70: Timer B2 */
+	.globl	_m16c_int0_isr
+	.long	_m16c_int0_isr			/* ffd74: INT0 */
+	.globl	_m16c_int1_isr
+	.long	_m16c_int1_isr			/* ffd78: INT1 */
+#ifdef CONFIG_M16C_SWINTS
+	.globl	_m16c_swint31_isr
+	.long	_m16c_swint31_isr		/* ffd7c: S/W interrupt 31 */
+	.globl	_m16c_swint32_isr
+	.long	_m16c_swint32_isr		/* ffd80: S/W interrupt 32 */
+	.globl	_m16c_swint33_isr
+	.long	_m16c_swint33_isr		/* ffd84: S/W interrupt 33 */
+	.globl	_m16c_swint34_isr
+	.long	_m16c_swint34_isr		/* ffd88: S/W interrupt 34 */
+	.globl	_m16c_swint35_isr
+	.long	_m16c_swint35_isr		/* ffd8c: S/W interrupt 35 */
+	.globl	_m16c_swint36_isr
+	.long	_m16c_swint36_isr		/* ffd90: S/W interrupt 36 */
+	.globl	_m16c_swint37_isr
+	.long	_m16c_swint37_isr		/* ffd94: S/W interrupt 37 */
+	.globl	_m16c_swint38_isr
+	.long	_m16c_swint38_isr		/* ffd98: S/W interrupt 38 */
+	.globl	_m16c_swint39_isr
+	.long	_m16c_swint39_isr		/* ffd9c: S/W interrupt 39 */
+	.globl	_m16c_swint40_isr
+	.long	_m16c_swint40_isr		/* ffda0: S/W interrupt 40 */
+	.globl	_m16c_swint41_isr
+	.long	_m16c_swint41_isr		/* ffda4: S/W interrupt 41 */
+	.globl	_m16c_swint42_isr
+	.long	_m16c_swint42_isr		/* ffda8: S/W interrupt 42 */
+	.globl	_m16c_swint43_isr
+	.long	_m16c_swint43_isr		/* ffdac: S/W interrupt 43 */
+	.globl	_m16c_swint44_isr
+	.long	_m16c_swint44_isr		/* ffdb0: S/W interrupt 44 */
+	.globl	_m16c_swint45_isr
+	.long	_m16c_swint45_isr		/* ffdb4: S/W interrupt 45 */
+	.globl	_m16c_swint46_isr
+	.long	_m16c_swint46_isr		/* ffdb8: S/W interrupt 46 */
+	.globl	_m16c_swint47_isr
+	.long	_m16c_swint47_isr		/* ffdbc: S/W interrupt 47 */
+	.globl	_m16c_swint48_isr
+	.long	_m16c_swint48_isr		/* ffdc0: S/W interrupt 48 */
+	.globl	_m16c_swint49_isr
+	.long	_m16c_swint49_isr		/* ffdc4: S/W interrupt 49 */
+	.globl	_m16c_swint50_isr
+	.long	_m16c_swint50_isr		/* ffdc8: S/W interrupt 50 */
+	.globl	_m16c_swint51_isr
+	.long	_m16c_swint51_isr		/* ffdcc: S/W interrupt 51 */
+	.globl	_m16c_swint52_isr
+	.long	_m16c_swint52_isr		/* ffdd0: S/W interrupt 52 */
+	.globl	_m16c_swint53_isr
+	.long	_m16c_swint53_isr		/* ffdd4: S/W interrupt 53 */
+	.globl	_m16c_swint54_isr
+	.long	_m16c_swint54_isr		/* ffdd8: S/W interrupt 54 */
+	.globl	_m16c_swint55_isr
+	.long	_m16c_swint55_isr		/* ffddc: S/W interrupt 55 */
+	.globl	_m16c_swint56_isr
+	.long	_m16c_swint56_isr		/* ffde0: S/W interrupt 56 */
+	.globl	_m16c_swint57_isr
+	.long	_m16c_swint57_isr		/* ffde4: S/W interrupt 57 */
+	.globl	_m16c_swint58_isr
+	.long	_m16c_swint58_isr		/* ffde8: S/W interrupt 58 */
+	.globl	_m16c_swint59_isr
+	.long	_m16c_swint59_isr		/* ffdec: S/W interrupt 59 */
+	.globl	_m16c_swint60_isr
+	.long	_m16c_swint60_isr		/* ffdf0: S/W interrupt 60 */
+	.globl	_m16c_swint61_isr
+	.long	_m16c_swint61_isr		/* ffdf4: S/W interrupt 61 */
+	.globl	_m16c_swint62_isr
+	.long	_m16c_swint62_isr		/* ffdf8: S/W interrupt 62 */
+	.globl	_m16c_swint63_isr
+	.long	_m16c_swint63_isr		/* ffdfc: S/W interrupt 63 */
+#else
+	.long	_m16c_unexpected_isr		/* ffd7c: Reserved */
+	.long	_m16c_unexpected_isr		/* ffd80: Not supported */
+	.long	_m16c_unexpected_isr		/* ffd84: Not supported */
+	.long	_m16c_unexpected_isr		/* ffd88: Not supported */
+	.long	_m16c_unexpected_isr		/* ffd8c: Not supported */
+	.long	_m16c_unexpected_isr		/* ffd90: Not supported */
+	.long	_m16c_unexpected_isr		/* ffd94: Not supported */
+	.long	_m16c_unexpected_isr		/* ffd98: Not supported */
+	.long	_m16c_unexpected_isr		/* ffd9c: Not supported */
+	.long	_m16c_unexpected_isr		/* ffda0: Not supported */
+	.long	_m16c_unexpected_isr		/* ffda4: Not supported1 */
+	.long	_m16c_unexpected_isr		/* ffda8: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdac: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdb0: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdb4: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdb8: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdbc: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdc0: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdc4: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdc8: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdcc: Not supported1 */
+	.long	_m16c_unexpected_isr		/* ffdd0: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdd4: Not supported3 */
+	.long	_m16c_unexpected_isr		/* ffdd8: Not supported */
+	.long	_m16c_unexpected_isr		/* ffddc: Not supported */
+	.long	_m16c_unexpected_isr		/* ffde0: Not supported */
+	.long	_m16c_unexpected_isr		/* ffde4: Not supported7 */
+	.long	_m16c_unexpected_isr		/* ffde8: Not supported */
+\	.long	_m16c_unexpected_isr		/* ffdec: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdf0: Not supported0 */
+	.long	_m16c_unexpected_isr		/* ffdf4: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdf8: Not supported */
+	.long	_m16c_unexpected_isr		/* ffdfc: Not supported */
+#endif
+
+/* Fixed vector section
+ *
+ * The fixed vector table begins at address ffe00.  The firt portion
+ * of the fixed vector table is the special page table.  This table
+ * is not currently used.
+ */
+ 	.section specpg				/* Special page table */
+ 
+	.section fixvects			/* Fixed vector table */
+	.globl	_m16c_undefinst_irq
+	.long	_m16c_undefinst_irq		/* fffdc: Undefined instruction */
+	.globl	_m16c_overflow_irq
+	.long	_m16c_overflow_irq		/* fffe0: Overflow */
+	.globl	_m16c_brkinst_irq
+	.long	_m16c_brkinst_irq		/* fffe4: BRK instruction */
+	.globl	_m16c_addrmatch_irq
+	.long	_m16c_addrmatch_irq		/* fffe8: Address match */
+#ifdef CONFIG_M16C_DEBUGGER
+	.globl	_m16c_sstep_irq
+	.long	_m16c_sstep_irq			/* fffec: Single step */
+#else
+	.long	_m16c_unexpected_isr		/* fffec: Not supported */
+#endif
+	.globl	_m16c_wdog_irq
+	.long	_m16c_wdog_irq			/* ffff0: Watchdog timer */
+#ifdef CONFIG_M16C_DEBUGGER
+	.globl	_m16c_dbc_irq
+	.long	_m16c_dbc_irq			/* ffff4: DBC */
+#else
+	.long	_m16c_unexpected_isr		/* ffff4: Not supported */
+#endif
+	.globl	_m16c_nmi_irq
+	.long	_m16c_nmi_irq			/* ffff8: NMI */
+	.long	__start				/* ffffc: Reset */
 
 /************************************************************************************
  * Code
  ************************************************************************************/
-
 /************************************************************************************
  * Name: _start
  *
@@ -166,25 +342,20 @@ _g_heapbase:
  ************************************************************************************/
 
  	.text
-	.globl	__start
-	.globl	_enbss
+	.global __start
 	.type	__start, #function
 __start:
 
-/* Set the interrupt and user stack pointers */
+/* Set the istack pointer */
 
-	mov.w	#_enbss, R0
-	ldc	R0, isp			/* Set the interrupt stack pointer to the end of BSS */
-	add.w	#CONFIG_IDLETHREAD_STACKSIZE, R0
-	fset	U			/* Set bit 7 (U) to select the user stack pointer */
-	ldc	R0, sp			/* Set the user stack pointer */
+	ldc	#_enbss, isp		/* Set idle thread stack pointer to the end of BSS */
 
 /* Set BCLK speed. At reset, the processor clock  (BLCK) defaults to a divisor of 8.
  * This sets clock to F1 (divide by 1) on XIN: BCLK = XIN frequency.
  */
 
- 	mov.b	#0x01, M16C_PRCR	/* Unprotect CM0 to change clock setting */
-	mov.b	#0x08, M16C_CM0		/* enable CM17 and CM16 to set BCLK to F1
+ 	mov.b	#0x01h, M16C_PRCR	/* Unprotect CM0 to change clock setting */
+	mov.b	#0x08h, M16C_CM0	/* enable CM17 and CM16 to set BCLK to F1
 					 * CM17 & CM16 defaults to 0 after reset and
 					 * so we only need to reset CM06 to 0 */
 	mov.b	#0x00,M16C_PRCR		/* protect CM0 */
@@ -195,84 +366,28 @@ __start:
 
  	mov.b	#0xc0, M16C_IFSR	/* Set b7 & b6 if application will use INT4 & INT5 */
 	ldc	#M16C_IRAM_BASE, sb	/* Set sb register (to what?) */
+	ldintb	#_svarvect
 
-/* Set up INTB to point to location of variable vector table */
+/* Clear .bss sections */
 
-	mov.w	_g_svarvect, r0		/* R0 = lower 16-bits */
-	mov.w	_g_svarvect+2, r1	/* R1 = upper 4-bits */
-	ldc	r1, intbh
-	ldc	r0, intbl
-
-/* Configure the uart so that we can get debug output as soon as possible. */
-
-	.globl	_up_lowsetup		/* Early initialization of UART */
-	jsr.a	_up_lowsetup
-	showprogress 'A'
-
-/* Clear near .bss sections */
-
-	mov.b	#0x00, r0l		/* r0l: 0 */
-	mov.w	_g_snbss, a1		/* a1: start of near .bss */
-	mov.w	_g_enbss, r3		/* r3: end of near .bss */
-	sub.w	a1, r3			/* r3: size of near .bss */
-	sstr.b				/* Clear near .bss */
-
-/* Clear far .bss sections */
-
-	showprogress 'B'
-
+	m16c_bzero	_snbss, _enbss
 #ifdef CONFIG_M16C_HAVEFARRAM
-# warning "Far RAM support not implemented"
+	m16c_bzero	_sfbss, _efbss
 #endif
 
-/* Initialize near .data sections (.rodata is not moved) */
+/* Initialize .data sections */
 
-	mov.w	_g_enronly, a0		/* a0: Low 16 bits of source address */
-	mov.b	_g_enronly+2, r1h	/* 4 MS of 20-bit source address */
-	mov.w	_g_sndata, a1		/* a1: start of near .data */
-	mov.w	_g_endata, r3		/* r3: end of near .data */
-	sub.w	a1, r3			/* r3: size of near .data */
-	smovf.b				/* Copy source to near .data */
-
-/* Initialize far .data sections (.rodata is not moved) */
-
-	showprogress 'C'
-
+	m16c_memcpy	_sndata, _enronly, _endata
 #ifdef CONFIG_M16C_HAVEFARRAM
-# warning "Far RAM support not implemented"
+	m16c_memcpy	_sfdata, _efronly, _efdata
 #endif
-
-/* Perform early console initialization */
-
-#ifdef CONFIG_USE_EARLYSERIALINIT
-	.globl	_up_earlyconsoleinit	/* Early initialization of console driver */
-	jsr.a	 _up_earlyconsoleinit	/* Call it */
-	showprogress 'D'
-#endif
-
-/* Call C++ constructors */
-
-#ifdef CONFIG_CPLUSPLUS
-#  warning "No C++ support yet"
-	showprogress 'E'
-#endif
-
-/* Initialize onboard LEDs */
-
-#ifdef CONFIG_ARCH_LEDS
-	.globl	_up_ledinit		/* Boot LED setup */
-	jsr.a	_up_ledinit		/* Call it */
-#endif
-	showprogress '\n'
 
 /* Pass control to NuttX */
 
-	.globl	_os_start
+	.glbl	_os_start
 	jsr.a	_os_start
 
 /* NuttX will not return, but just in case... */
 
-_os_exit:
-	jmp.s	_os_exit
-	.size	__start, .-__start
-	.end
+.Lreturned:
+	jmp	.Lreturned

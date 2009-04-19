@@ -1,5 +1,5 @@
-#!/bin/bash
-# configs/z16f2800100zcog/ostest/setenv.sh
+#!/bin/sh
+# z16f2800100zcog/setenv.sh
 #
 #   Copyright (C) 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>

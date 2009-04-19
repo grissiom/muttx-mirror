@@ -49,6 +49,7 @@
 #include "pinsn16.h"
 #include "pxdefs.h"
 #include "pedefs.h"
+#include "pmach.h"
 
 #include "paslib.h"
 #include "perr.h"
@@ -84,10 +85,10 @@ static const struct option long_options[] =
  * Private Data
  ****************************************************************************/
 
-static const char  *g_pofffilename;
-static sint32       g_varstacksize = DEFAULT_STACK_SIZE;
-static sint32       g_strstacksize = DEFAULT_STKSTR_SIZE;
-static int          g_debug        = 0;
+static const char  *poffFileName;
+static sint32       varStackSize    = DEFAULT_STACK_SIZE;
+static sint32       stringStackSize = DEFAULT_STKSTR_SIZE;
+static int          debug           = 0;
 
 /****************************************************************************
  * Global Variables
@@ -97,11 +98,7 @@ static int          g_debug        = 0;
  * Private Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: prun_showusage
- ****************************************************************************/
-
-static void prun_showusage(const char *progname)
+static void showUsage(const char *progname)
 {
   fprintf(stderr, "Usage:\n");
   fprintf(stderr, "  %s [options] <program-filename>\n",
@@ -126,11 +123,7 @@ static void prun_showusage(const char *progname)
   exit(1);
 }
 
-/****************************************************************************
- * Name: prun_parseargs
- ****************************************************************************/
-
-static void prun_parseargs(int argc, char **argv)
+static void parse_args(int argc, char **argv)
 {
   int option_index;
   int size;
@@ -141,7 +134,7 @@ static void prun_parseargs(int argc, char **argv)
   if (argc < 2)
     {
       fprintf(stderr, "ERROR: Filename required\n");
-      prun_showusage(argv[0]);
+      showUsage(argv[0]);
     } /* end if */
 
   /* Parse the command line options */
@@ -159,9 +152,9 @@ static void prun_parseargs(int argc, char **argv)
 	      if (size < MIN_STACK_SIZE)
 		{
 		  fprintf(stderr, "ERROR: Invalid stack size\n");
-		  prun_showusage(argv[0]);
+		  showUsage(argv[0]);
 		}
-	      g_varstacksize = (size + 3) & ~3;
+	      varStackSize = (size + 3) & ~3;
 	      break;
 
 	    case 't' :
@@ -169,24 +162,24 @@ static void prun_parseargs(int argc, char **argv)
 	      if (size < 0)
 		{
 		  fprintf(stderr, "ERROR: Invalid string storage size\n");
-		  prun_showusage(argv[0]);
+		  showUsage(argv[0]);
 		}
-	      g_strstacksize = ((size + 3) & ~3);
+	      stringStackSize = ((size + 3) & ~3);
 	      break;
 
 	    case 'd' :
-	      g_debug++;
+	      debug++;
 	      break;
 
 	    case 'h' :
-	      prun_showusage(argv[0]);
+	      showUsage(argv[0]);
 	      break;
 
 	    default:
 	      /* Shouldn't happen */
 
 	      fprintf(stderr, "ERROR: Unrecognized option\n");
-	      prun_showusage(argv[0]);
+	      showUsage(argv[0]);
 	    }
 	}
     }
@@ -195,26 +188,20 @@ static void prun_parseargs(int argc, char **argv)
   if (optind != argc-1)
     {
       fprintf(stderr, "ERROR: Only one filename permitted on command line\n");
-      prun_showusage(argv[0]);
+      showUsage(argv[0]);
     }
 
   /* Get the name of the p-code file(s) from the last argument(s) */
 
-  g_pofffilename = argv[argc-1];
+  poffFileName = argv[argc-1];
 }
 
-/****************************************************************************
- * Name: prun
- *
- * Description:
- *   This function executes the P-Code program until a stopping condition
- *   is encountered.
- *
- ****************************************************************************/
+/* This function executes the P-Code program until a stopping condition
+ * is encountered. */
 
-static void prun(struct pexec_s *st)
+static void run(struct pexec_s *st)
 {
-  int errcode;
+  uint16 errcode;
 
   for (;;)
     {
@@ -234,10 +221,6 @@ static void prun(struct pexec_s *st)
  * Public Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: main
- ****************************************************************************/
-
 int main(int argc, char *argv[], char *envp[])
 {
   struct pexec_s *st;
@@ -245,16 +228,16 @@ int main(int argc, char *argv[], char *envp[])
 
   /* Parse the command line arguments */
 
-  prun_parseargs(argc, argv);
+  parse_args(argc, argv);
 
   /* Load the POFF files specified on the command line */
   /* Use .o or command line extension, if supplied */
 
-  (void)extension(g_pofffilename, "o", fileName, 0);
+  (void)extension(poffFileName, "o", fileName, 0);
 
   /* Load the POFF file */
 
-  st = pload(fileName, g_varstacksize, g_strstacksize);
+  st = pload(fileName, varStackSize, stringStackSize);
   if (!st)
     {
       fprintf(stderr, "ERROR: Could not load %s\n", fileName);
@@ -264,14 +247,11 @@ int main(int argc, char *argv[], char *envp[])
 
   /* And start program execution in the specified mode */
 
-  if (g_debug)
+  if (debug)
     dbg_run(st);
   else
-    prun(st);
+    run(st);
 
-  /* Clean up resources used by the interpreter */
-
-  pexec_release(st);
   return 0;
 
 } /* end main */

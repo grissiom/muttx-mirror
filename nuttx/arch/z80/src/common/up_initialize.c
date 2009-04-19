@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/z80/src/common/up_initialize.c
+ * common/up_initialize.c
  *
  *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -47,7 +47,6 @@
 #include <nuttx/mm.h>
 #include <arch/board/board.h>
 
-#include "chip/switch.h"
 #include "up_internal.h"
 
 /****************************************************************************
@@ -57,10 +56,6 @@
 /* Define to enable timing loop calibration */
 
 #undef CONFIG_ARCH_CALIBRATION
-
-/****************************************************************************
- * Public Data
- ****************************************************************************/
 
 /****************************************************************************
  * Private Types
@@ -124,7 +119,7 @@ void up_initialize(void)
 {
   /* Initialize global variables */
 
-  INIT_IRQCONTEXT();
+  current_regs = NULL;
 
   /* Calibrate the timing loop */
 
@@ -154,15 +149,7 @@ void up_initialize(void)
 
   /* Initialize the serial device driver */
 
-#ifdef CONFIG_USE_LOWUARTINIT
-  up_lowuartinit();
-#endif
-
-#ifdef CONFIG_USE_SERIALDRIVER
   up_serialinit();
-#elif defined(CONFIG_DEV_LOWCONSOLE)
-  lowconsole_init();
-#endif
 
   /* Initialize the netwok */
 

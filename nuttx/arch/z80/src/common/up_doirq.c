@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/z80/src/common/up_doirq.c
+ * common/up_doirq.c
  *
  *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -38,15 +38,11 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
 #include <sys/types.h>
-#include <assert.h>
-#include "up_arch.h"
-
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
-
-#include "chip/switch.h"
+#include <assert.h>
+#include "up_arch.h"
 #include "os_internal.h"
 #include "up_internal.h"
 
@@ -67,41 +63,42 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Funtions
  ****************************************************************************/
 
-FAR chipreg_t *up_doirq(ubyte irq, FAR chipreg_t *regs)
+void up_doirq(int irq, chipreg_t *regs)
 {
   up_ledon(LED_INIRQ);
-
 #ifdef CONFIG_SUPPRESS_INTERRUPTS
-
-  lib_lowprintf("Unexpected IRQ\n");
-  IRQ_ENTER(regs);
   PANIC(OSERR_ERREXCEPTION);
-  return NULL; /* Won't get here */
-
 #else
-  if (irq < NR_IRQS)
+  if ((unsigned)irq < NR_IRQS)
     {
-       /* Indicate that we have entered IRQ processing logic */
+       /* Current regs non-zero indicates that we are processing
+        * an interrupt; current_regs is also used to manage
+        * interrupt level context switches.
+        */
 
-       IRQ_ENTER(irq, regs);
+       current_regs = regs;
+
+       /* Mask and acknowledge the interrupt */
+
+       up_maskack_irq(irq);
 
        /* Deliver the IRQ */
 
        irq_dispatch(irq, regs);
 
-       /* If a context switch occurred, 'regs' will hold the new context */
+       /* Indicate that we are no long in an interrupt handler */
 
-       regs = IRQ_STATE();
+       current_regs = NULL;
 
-       /* Indicate that we are no longer in interrupt processing logic */
+       /* Unmask the last interrupt (global interrupts are still
+        * disabled.
+        */
 
-       IRQ_LEAVE(irq);
+       up_enable_irq(irq);
     }
   up_ledoff(LED_INIRQ);
-  return regs;
 #endif
 }
-

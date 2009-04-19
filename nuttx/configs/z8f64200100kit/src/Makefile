@@ -1,5 +1,5 @@
 ############################################################################
-# configs/z8f64200100kit/Makefile
+# configs/z8f4200100kit/Makefile
 #
 #   Copyright (C) 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -61,7 +61,7 @@ $(AOBJS): %$(OBJEXT): %$(ASMEXT)
 	$(call ASSEMBLE, $<, $@)
 
 $(COBJS) $(LINKOBJS): %$(OBJEXT): %.c
-	$(call COMPILE, $<, $@)
+	$(call COMPILE, `cygpath -w $<`, $@)
 
 libboard$(LIBEXT): $(OBJS)
 	@( for obj in $(OBJS) ; do \

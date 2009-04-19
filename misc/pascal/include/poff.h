@@ -193,10 +193,6 @@ struct poffFileHeader_s
 
   ubyte  fh_arch;
 
-  /* Pad so that the next field is aligned */
-
-  ubyte  fh_padding;
-
   /* fh_shsize is the size a section header.  This should be
    * sizeof(poffSectionHeader_t)
    */
@@ -423,7 +419,7 @@ typedef struct poffDebugFuncInfo_s poffDebugFuncInfo_t;
 
 struct poffDebugArgInfo_s
 {
-  /* This is the size, in bytes, of one input paramter */
+  /* This is the size, in bytes, of one input paramters */
 
   uint32 da_size;
 };

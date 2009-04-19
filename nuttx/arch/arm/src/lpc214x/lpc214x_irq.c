@@ -1,7 +1,7 @@
-/****************************************************************************
- * arch/arm/src/lpc214x/lpc214x_irq.c
+/************************************************************
+ * lpc214x/lpc214x_irq.c
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,190 +31,85 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Included Files
- ****************************************************************************/
+ ************************************************************/
 
 #include <nuttx/config.h>
 #include <sys/types.h>
-#include <debug.h>
 #include <nuttx/irq.h>
-
 #include "up_arch.h"
 #include "os_internal.h"
 #include "up_internal.h"
-#include "lpc214x_vic.h"
 
-/****************************************************************************
+/************************************************************
  * Definitions
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Public Data
- ****************************************************************************/
+ ************************************************************/
 
 uint32 *current_regs;
 
-/****************************************************************************
+/************************************************************
  * Private Data
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Private Functions
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Public Funtions
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Name: up_irqinitialize
- ****************************************************************************/
+ ************************************************************/
 
 void up_irqinitialize(void)
 {
-  int reg;
-
-  /* Disable all interrupts.  We do this by writing zero to the IntEnable
-   * register.  This is equivalent to writing all ones to the IntClearEnable
-   * register.
-   */
-
-  vic_putreg(0, LPC214X_VIC_INTENABLE_OFFSET);
-
-  /* Select all IRQs, no FIQs */
-
-  vic_putreg(0, LPC214X_VIC_INTSELECT_OFFSET);
-
-  /* Set the default vector */
-
-  vic_putreg((uint32)up_decodeirq, LPC214X_VIC_DEFVECTADDR_OFFSET);
-
-  /* Disable all vectored interrupts */
-
-  for (reg = LPC214X_VIC_VECTCNTL0_OFFSET;
-       reg <= LPC214X_VIC_VECTCNTL15_OFFSET;
-       reg += 4)
-    {
-      vic_putreg(0, reg);
-    }
-
-  /* currents_regs is non-NULL only while processing an interrupt */
-
-  current_regs = NULL;
-
-  /* And finally, enable interrupts */
-
-#ifndef CONFIG_SUPPRESS_INTERRUPTS
-  irqrestore(SVC_MODE | PSR_F_BIT);
-#endif
+#warning "Not implemented"
 }
 
-/****************************************************************************
+/************************************************************
  * Name: up_disable_irq
  *
  * Description:
  *   Disable the IRQ specified by 'irq'
  *
- ****************************************************************************/
+ ************************************************************/
 
 void up_disable_irq(int irq)
 {
-  /* Verify that the IRQ number is within range */
-
-  if (irq < NR_IRQS)
-    {
-      /* Disable the irq by setting the corresponding bit in the VIC
-       * Interrupt Enable Clear register.
-       */
-
-      vic_putreg((1 << irq), LPC214X_VIC_INTENCLEAR_OFFSET);
-    }
+#warning "Not implemented"
 }
 
-/****************************************************************************
+/************************************************************
  * Name: up_enable_irq
  *
  * Description:
  *   Enable the IRQ specified by 'irq'
  *
- ****************************************************************************/
+ ************************************************************/
 
 void up_enable_irq(int irq)
 {
-  /* Verify that the IRQ number is within range */
-
-  if (irq < NR_IRQS)
-    {
-      /* Disable all interrupts */
-
-      irqstate_t flags = irqsave();
-
-      /* Enable the irq by setting the corresponding bit in the VIC
-       * Interrupt Enable register.
-       */
-
-      uint32 val = vic_getreg(LPC214X_VIC_INTENABLE_OFFSET);
-      vic_putreg(val | (1 << irq), LPC214X_VIC_INTENABLE_OFFSET);
-      irqrestore(flags);
-    }
+#warning "Not implemented"
 }
 
-/****************************************************************************
- * Name: up_attach_vector
+/************************************************************
+ * Name: up_maskack_irq
  *
  * Description:
- *   Attach a user-supplied handler to a vectored interrupt
+ *   Mask the IRQ and acknowledge it
  *
- ****************************************************************************/
+ ************************************************************/
 
-#ifndef CONFIG_VECTORED_INTERRUPTS
-void up_attach_vector(int irq, int vector, vic_vector_t handler)
+void up_maskack_irq(int irq)
 {
-  /* Verify that the IRQ number and vector number are within range */
-
-  if (irq < NR_IRQS && vector < 16 && handler)
-    {
-      int offset = vector << 2;
-
-      /* Disable all interrupts */
-
-      irqstate_t flags = irqsave();
-
-      /* Save the vector address */
-
-      vic_putreg((uint32)handler, LPC214X_VIC_VECTADDR0_OFFSET + offset);
-
-      /* Enable the vectored interrupt */
-
-      vic_putreg(((irq << LPC214X_VECTCNTL_IRQSHIFT) | LPC214X_VECTCNTL_ENABLE),
-		 LPC214X_VIC_VECTCNTL0_OFFSET + offset);
-      irqrestore(flags);
-    }
+#warning "Not implemented"
 }
-#endif
-
-/****************************************************************************
- * Name: up_detach_vector
- *
- * Description:
- *   Detach a user-supplied handler from a vectored interrupt
- *
- ****************************************************************************/
-
-#ifndef CONFIG_VECTORED_INTERRUPTS
-void up_detach_vector(int vector)
-{
-  /* Verify that the vector number is within range */
-
-  if (vector < 16)
-    {
-      /* Disable the vectored interrupt */
-
-      int offset = vector << 2;
-      vic_putreg(0, LPC214X_VIC_VECTCNTL0_OFFSET + offset);
-    }
-}
-#endif

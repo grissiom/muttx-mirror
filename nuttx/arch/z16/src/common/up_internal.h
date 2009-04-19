@@ -1,7 +1,7 @@
 /****************************************************************************
  * common/up_internal.h
  *
- *   Copyright (C) 2008-2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -41,7 +41,7 @@
  ****************************************************************************/
 
 #include <arch/irq.h>
-#include "chip/chip.h"
+#include <chip/chip.h>
 
 /****************************************************************************
  * Definitions
@@ -57,25 +57,12 @@
 #undef  CONFIG_SUPPRESS_SERIAL_INTS   /* Console will poll */
 #undef  CONFIG_SUPPRESS_UART_CONFIG   /* Do not reconfig UART */
 #undef  CONFIG_DUMP_ON_EXIT           /* Dump task state on exit */
-#undef  CONFIG_Z16_LOWPUTC            /* Support up_lowputc for debug */
-#undef  CONFIG_Z16_LOWGETC            /* support up_lowgetc for debug */
 
-/* Determine which (if any) console driver to use */
-
-#if defined(CONFIG_Z16_LOWPUTC) || defined(CONFIG_Z16_LOWGETC) || \
-    CONFIG_NFILE_DESCRIPTORS == 0 || defined(CONFIG_DEV_LOWCONSOLE)
-#  define CONFIG_USE_LOWCONSOLE 1
-#  define CONFIG_USE_LOWUARTINIT 1
-#elif defined(CONFIG_DEV_CONSOLE) && CONFIG_NFILE_DESCRIPTORS > 0
-#  define CONFIG_USE_SERIALDRIVER 1
-#  define CONFIG_USE_EARLYSERIALINIT 1
-#endif
- 
 /* Macros for portability */
 
 #define IN_INTERRUPT             (current_regs != NULL)
 #define SAVE_IRQCONTEXT(tcb)     up_copystate((tcb)->xcp.regs, current_regs)
-#define SET_IRQCONTEXT(tcb)      do { current_regs = (tcb)->xcp.regs; } while (0)
+#define SET_IRQCONTEXT(tcb)      up_copystate(current_regs, (tcb)->xcp.regs)
 #define SAVE_USERCONTEXT(tcb)    up_saveusercontext((tcb)->xcp.regs)
 #define RESTORE_USERCONTEXT(tcb) up_restoreusercontext((tcb)->xcp.regs)
 #define SIGNAL_RETURN(regs)      up_restoreusercontext(regs)
@@ -98,7 +85,7 @@ typedef void (*up_vector_t)(void);
  * interrupt processing.
  */
 
-extern FAR chipreg_t *current_regs;
+extern uint32 *current_regs;
 #endif
 
 /****************************************************************************
@@ -109,15 +96,16 @@ extern FAR chipreg_t *current_regs;
 
 /* Defined in files with the same name as the function */
 
-extern void up_copystate(FAR chipreg_t *dest, FAR chipreg_t *src);
-extern FAR chipreg_t *up_doirq(int irq, FAR chipreg_t *regs);
-extern void up_restoreusercontext(FAR chipreg_t *regs);
+extern void up_copystate(FAR uint32 *dest, FAR uint32 *src);
+extern void up_decodeirq(FAR uint32 *regs);
+extern void up_doirq(int irq, FAR uint32 *regs);
+extern void up_fullcontextrestore(FAR uint32 *regs);
 extern void up_irqinitialize(void);
-extern int  up_saveusercontext(FAR chipreg_t *regs);
+extern int  up_saveusercontext(FAR uint32 *regs);
 extern void up_sigdeliver(void);
-extern int  up_timerisr(int irq, FAR chipreg_t *regs);
+extern int  up_timerisr(int irq, FAR uint32 *regs);
 
-#if defined(CONFIG_Z16_LOWPUTC) || defined(CONFIG_Z16_LOWGETC)
+#if defined(CONFIG_ARCH_LOWPUTC) || defined(CONFIG_ARCH_LOWGETC)
 extern void up_lowputc(char ch);
 #else
 # define up_lowputc(ch)
@@ -131,13 +119,12 @@ void up_addregion(void);
 
 /* Defined in up_serial.c */
 
-#ifdef CONFIG_USE_SERIALDRIVER
+#if CONFIG_NFILE_DESCRIPTORS > 0
 extern void up_earlyserialinit(void);
 extern void up_serialinit(void);
-#endif
-
-#ifdef CONFIG_USE_LOWCONSOLE
-extern void lowconsole_init(void);
+#else
+# define up_earlyserialinit()
+# define up_serialinit()
 #endif
 
 /* Defined in up_timerisr.c */
@@ -170,7 +157,7 @@ extern void up_netinitialize(void);
 
 /* Return the current value of the stack pointer (used in stack dump logic) */
 
-extern chipreg_t up_getsp(void);
+extern uint32 up_getsp(void);
 
 /* Dump stack and registers */
 

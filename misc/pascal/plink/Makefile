@@ -75,7 +75,7 @@ check_libs:
 	fi
 
 $(BINDIR-y)/plink: check_libs $(PLINKOBJS)
-	$(CC) -o $@ $(LDFLAGS) $(PLINKOBJS) -linsn -lpoff -lpas
+	$(CC) -o $@ $(LDFLAGS) $(PLINKOBJS) -lpas -linsn -lpoff
 
 plink: $(BINDIR-y)/plink
 

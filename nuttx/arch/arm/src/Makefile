@@ -1,7 +1,7 @@
 ############################################################################
-# arch/arm/src/Makefile
+# Makefile
 #
-#   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2007 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
 #    notice, this list of conditions and the following disclaimer in
 #    the documentation and/or other materials provided with the
 #    distribution.
-# 3. Neither the name NuttX nor the names of its contributors may be
+# 3. Neither the name Gregory Nutt nor the names of its contributors may be
 #    used to endorse or promote products derived from this software
 #    without specific prior written permission.
 #
@@ -36,6 +36,7 @@
 -include $(TOPDIR)/Make.defs
 -include chip/Make.defs
 
+MKDEP 		= $(TOPDIR)/tools/mkdeps.sh
 ARCH_SRCDIR	= $(TOPDIR)/arch/$(CONFIG_ARCH)/src
 CFLAGS		+= -I$(ARCH_SRCDIR)/chip -I$(ARCH_SRCDIR)/common -I$(TOPDIR)/sched
 
@@ -66,28 +67,23 @@ VPATH		= chip:common
 all: $(HEAD_OBJ) libarch$(LIBEXT)
 
 $(AOBJS) $(HEAD_AOBJ): %$(OBJEXT): %.S
-	$(call ASSEMBLE, $<, $@)
+	$(CC) -c $(CFLAGS) -D__ASSEMBLY__ $< -o $@
 
 $(COBJS): %$(OBJEXT): %.c
-	$(call COMPILE, $<, $@)
+	$(CC) -c $(CFLAGS) $< -o $@
 
 libarch$(LIBEXT): $(OBJS)
 	@( for obj in $(OBJS) ; do \
-		$(call ARCHIVE, $@, $${obj}); \
+		$(AR) $@ $${obj} || \
+			{ echo "$(AR) $@ $obj FAILED!" ; exit 1 ; } ; \
 	done ; )
 
 board/libboard$(LIBEXT):
-	$(MAKE) -C board TOPDIR="$(TOPDIR)" libboard$(LIBEXT)
+	$(MAKE) -C board TOPDIR=$(TOPDIR) libboard$(LIBEXT)
 
 nuttx: $(HEAD_AOBJ) board/libboard$(LIBEXT)
-	@echo "LD: nuttx"
-	@$(LD) --entry=__start $(LDFLAGS) $(LDPATHES) -L$(BOARDDIR) -o $(TOPDIR)/$@ $(HEAD_AOBJ) \
-		--start-group $(LDLIBS) -lboard --end-group $(EXTRA_LIBS) $(LIBGCC)
-ifeq ($(CONFIG_BOOT_RUNFROMFLASH),y)
-	@export flashloc=`$(OBJDUMP) --all-headers $(TOPDIR)/$@ | grep _eronly | cut -d' ' -f1`;  \
-	$(OBJCOPY) --adjust-section-vma=.data=0x$$flashloc $(TOPDIR)/$@ $(TOPDIR)/$@.flashimage
-	@mv $(TOPDIR)/$@.flashimage $(TOPDIR)/$@
-endif
+	$(LD) --entry=__start $(LDFLAGS) $(LDPATHES) -L$(BOARDDIR) -o $(TOPDIR)/$@ $(HEAD_AOBJ) \
+		--start-group $(LDLIBS) -lboard --end-group $(EXTRA_LIBS) $(LIBGCC) 
 	@$(NM) $(TOPDIR)/$@ | \
 	grep -v '\(compiled\)\|\(\$(OBJEXT)$$\)\|\( [aUw] \)\|\(\.\.ng$$\)\|\(LASH[RL]DI\)' | \
 	sort > $(TOPDIR)/System.map
@@ -96,26 +92,32 @@ endif
 		$(OBJCOPY) --adjust-section-vma=.vector=0x$$vflashstart $(TOPDIR)/$@ $(TOPDIR)/$@.flashimage; \
 		mv $(TOPDIR)/$@.flashimage $(TOPDIR)/$@; \
 	fi
-
-.depend: Makefile chip/Make.defs $(SRCS)
-	@if [ -e board/Makefile ]; then \
-		$(MAKE) -C board TOPDIR="$(TOPDIR)" depend ; \
+ifeq ($(CONFIG_RRLOAD_BINARY),y)
+	@$(TOPDIR)/tools/mkimage.sh --Prefix $(CROSSDEV) $(TOPDIR)/$@ $(TOPDIR)/$@.rr
+	@if [ -w /tftpboot ] ; then \
+		cp -f $(TOPDIR)/$@.rr /tftpboot/$@.rr.${CONFIG_ARCH}; \
 	fi
-	@$(MKDEP) --dep-path chip --dep-path common $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+endif
+
+.depend: Makefile $(SRCS)
+	@if [ -e board/Makefile ]; then \
+		$(MAKE) -C board TOPDIR=$(TOPDIR) depend ; \
+	if
+	$(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
 	@touch $@
 
 depend: .depend
 
 clean:
 	@if [ -e board/Makefile ]; then \
-		$(MAKE) -C board TOPDIR="$(TOPDIR)" clean ; \
+		$(MAKE) -C board TOPDIR=$(TOPDIR) clean ; \
 	fi
-	@rm -f libarch$(LIBEXT) *~ .*.swp
-	$(call CLEAN)
+	@rm -f libarch$(LIBEXT) *~
+	@if [ ! -z "$(OBJEXT)" ]; then rm -f *$(OBJEXT); fi
 
 distclean: clean
 	@if [ -e board/Makefile ]; then \
-		$(MAKE) -C board TOPDIR="$(TOPDIR)" distclean ; \
+		$(MAKE) -C board TOPDIR=$(TOPDIR) distclean ; \
 	fi
 	@rm -f Make.dep .depend
 

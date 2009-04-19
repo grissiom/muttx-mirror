@@ -38,8 +38,6 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
-#include <stdio.h>
 #include <unistd.h>
 
 /****************************************************************************
@@ -73,23 +71,6 @@ void user_initialize(void)
 
 int user_start(int argc, char *argv[])
 {
-#ifdef CONFIG_EXAMPLES_SERLOOP_BUFIO
-  int ch;
-
-  for (;;)
-    {
-      ch = getchar();
-      if (ch < 1)
-        {
-          ch = '!';
-        }
-      else if ((ch < 0x20 || ch > 0x7e) && ch != '\n')
-        {
-          ch = '.';
-        }
-      putchar(ch);
-    }
-#else
   ubyte ch;
   int ret;
 
@@ -100,13 +81,12 @@ int user_start(int argc, char *argv[])
         {
           ch = '!';
         }
-      else if ((ch < 0x20 || ch > 0x7e) && ch != '\n')
+      else if (ch < 0x20 || ch > 0x7e)
         {
           ch = '.';
         }
       ret = write(1, &ch, 1);
     }
-#endif
   return 0;
 }
 

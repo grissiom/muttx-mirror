@@ -1,7 +1,7 @@
-/****************************************************************************
+/************************************************************
  * common/up_exit.c
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,11 +31,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Included Files
- ****************************************************************************/
+ ************************************************************/
 
 #include <nuttx/config.h>
 #include <sys/types.h>
@@ -49,98 +49,85 @@
 #include <nuttx/fs.h>
 #endif
 
-/****************************************************************************
+/************************************************************
  * Private Definitions
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Private Data
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+/************************************************************
+ * Private Funtions
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Name: _up_dumponexit
  *
  * Description:
- *   Dump the state of all tasks whenever on task exits.  This is debug
- *   instrumentation that was added to check file-related reference counting
- *   but could be useful again sometime in the future.
+ *   Dump the state of all tasks whenever on task exits.  This
+ *   is debug instrumentation that was added to check file-
+ *   related reference counting but could be useful again
+ *   sometime in the future.
  *
- ****************************************************************************/
+ ************************************************************/
 
 #if defined(CONFIG_DUMP_ON_EXIT) && defined(CONFIG_DEBUG)
 static void _up_dumponexit(FAR _TCB *tcb, FAR void *arg)
 {
-#if CONFIG_NFILE_DESCRIPTORS > 0 || CONFIG_NFILE_STREAMS > 0
   int i;
-#endif
-
-  sdbg("  TCB=%p name=%s\n", tcb, tcb->argv[0]);
-
-#if CONFIG_NFILE_DESCRIPTORS > 0
+  dbg("  TCB=%p name=%s\n", tcb, tcb->argv[0]);
   if (tcb->filelist)
     {
-      sdbg("    filelist refcount=%d\n",
-           tcb->filelist->fl_crefs);
+      dbg("    filelist refcount=%d\n",
+          tcb->filelist->fl_crefs);
 
       for (i = 0; i < CONFIG_NFILE_DESCRIPTORS; i++)
         {
           struct inode *inode = tcb->filelist->fl_files[i].f_inode;
           if (inode)
             {
-              sdbg("      fd=%d refcount=%d\n",
-                   i, inode->i_crefs);
+              dbg("      fd=%d refcount=%d\n",
+                  i, inode->i_crefs);
             }
         }
     }
-#endif
 
-#if CONFIG_NFILE_STREAMS > 0
   if (tcb->streams)
     {
-      sdbg("    streamlist refcount=%d\n",
-           tcb->streams->sl_crefs);
+      dbg("    streamlist refcount=%d\n",
+          tcb->streams->sl_crefs);
 
       for (i = 0; i < CONFIG_NFILE_STREAMS; i++)
         {
           struct file_struct *filep = &tcb->streams->sl_streams[i];
           if (filep->fs_filedes >= 0)
             {
-#if CONFIG_STDIO_BUFFER_SIZE > 0
-              sdbg("      fd=%d nbytes=%d\n",
-                   filep->fs_filedes,
+              dbg("      fd=%d nbytes=%d\n",
+                  filep->fs_filedes,
                   filep->fs_bufpos - filep->fs_bufstart);
-#else
-              sdbg("      fd=%d\n", filep->fs_filedes);
-#endif
             }
         }
     }
-#endif
 }
 #endif
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+/************************************************************
+ * Public Funtions
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Name: _exit
  *
  * Description:
  *   This function causes the currently executing task to cease
- *   to exist.  This is a special case of task_delete() where the task to
- *   be deleted is the currently executing task.  It is more complex because
- *   a context switch must be perform to the the next ready to run task.
+ *   to exist.  This is a special case of task_delete().
  *
- ****************************************************************************/
+ ************************************************************/
 
 void _exit(int status)
 {
-  _TCB* tcb;
+  _TCB* tcb = (_TCB*)g_readytorun.head;
 
   /* Disable interrupts.  They will be restored when the next
    * task is started.
@@ -148,22 +135,51 @@ void _exit(int status)
 
   (void)irqsave();
 
-  slldbg("TCB=%p exitting\n", g_readytorun.head);
+  lldbg("TCB=%p exitting\n", tcb);
 
 #if defined(CONFIG_DUMP_ON_EXIT) && defined(CONFIG_DEBUG)
-  slldbg("Other tasks:\n");
+  dbg("Other tasks:\n");
   sched_foreach(_up_dumponexit, NULL);
 #endif
 
-  /* Destroy the task at the head of the ready to run list. */
+  /* Remove the tcb task from the ready-to-run list.  We can
+   * ignore the return value because we know that a context
+   * switch is needed.
+   */
 
-  (void)task_deletecurrent();
+  (void)sched_removereadytorun(tcb);
+
+  /* We are not in a bad stack-- the head of the ready to run task list
+   * does not correspond to the thread that is running.  Disabling pre-
+   * emption on this TCB should be enough to keep things stable.
+   */
+
+  sched_lock();
+
+  /* Move the TCB to the specified blocked task list and delete it */
+
+  sched_addblocked(tcb, TSTATE_TASK_INACTIVE);
+  task_delete(tcb->pid);
+
+  /* If there are any pending tasks, then add them to the g_readytorun
+   * task list now
+   */
+
+  if (g_pendingtasks.head)
+    {
+      (void)sched_mergepending();
+    }
+
+  /* Now calling sched_unlock() should have no effect */
+
+  sched_unlock();
 
   /* Now, perform the context switch to the new ready-to-run task at the
    * head of the list.
    */
 
   tcb = (_TCB*)g_readytorun.head;
+  lldbg("New Active Task TCB=%p\n", tcb);
 
   /* Then switch contexts */
 

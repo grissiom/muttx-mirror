@@ -1,7 +1,7 @@
-/*****************************************************************************
- * arch/arm/src/lpc214x/lpc214x_head.S
+/********************************************************************
+ * lpc214x/lpc214x_head.S
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,25 +31,19 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *****************************************************************************/
+ ********************************************************************/
 
-/*****************************************************************************
+/********************************************************************
  * Included Files
- *****************************************************************************/
+ ********************************************************************/
 
 #include <nuttx/config.h>
-
-#include <arch/board/board.h>
-#include "chip.h"
-#include "lpc214x_pll.h"
-#include "lpc214x_apb.h"
-#include "lpc214x_pinsel.h"
 #include "up_internal.h"
 #include "up_arch.h"
 
-/*****************************************************************************
+/********************************************************************
  * Definitions
- *****************************************************************************/
+ ********************************************************************/
 
 /* This file holds the NuttX start logic that runs when the LPC2148
  * is reset.  This logic must be located at address 0x0000:0000 in
@@ -86,77 +80,32 @@
 
 /* Phase Locked Loop (PLL) initialization values
  *
- * Bit 0:4 MSEL: PLL Multiplier "M" Value
- *               CCLK = M * Fosc
- * Bit 5:6 PSEL: PLL Divider "P" Value 
- *               Fcco = CCLK * 2 * P
- *               156MHz <= Fcco <= 320MHz
- */
-
-/* PLL0 provides CCLK and must always be configured */
-
-#ifndef CONFIG_PLLCFG_VALUE /* board.h values can be supeceded config file */
-#  ifdef LPC214X_PLL_M
-#    define CONFIG_PLLCFG_MSEL (LPC214X_PLL_M-1)
-#  else
-#    warning "PLL_M not specified"
-#    define CONFIG_PLLCFG_MSEL (5-1)
-#  endif
-#  ifdef LPC214X_PLL_P
-#    if LPC214X_PLL_P == 1
-#      define CONFIG_PLLCFG_PSEL LPC214X_PLL_CFG_PSEL1
-#    elif LPC214X_PLL_P == 2
-#      define CONFIG_PLLCFG_PSEL LPC214X_PLL_CFG_PSEL2
-#    elif LPC214X_PLL_P == 4
-#      define CONFIG_PLLCFG_PSEL LPC214X_PLL_CFG_PSEL4
-#    elif LPC214X_PLL_P == 8
-#      define CONFIG_PLLCFG_PSEL LPC214X_PLL_CFG_PSEL8
-#    else
-#      error "Unrecognized value for PLL_P"
-#    endif
-#  else
-#    warning "PLL_P not specified"
-#    define CONFIG_PLLCFG_PSEL LPC214X_PLL_CFG_PSEL2
-#  endif
-#  define CONFIG_PLLCFG_VALUE (CONFIG_PLLCFG_PSEL|CONFIG_PLLCFG_MSEL)
-#endif
-
-/* If  USB is enabled, PLL1 must be configured for 48MHz to provide USB clocking */
-
-#ifdef CONFIG_USBDEV
-#  ifndef CONFIG_USBPLLCFG_VALUE /* board.h values can be supeceded config file */
-#    ifdef LPC214X_USBPLL_M
-#      define LPC214X_USBPLLCFG_MSEL (LPC214X_USBPLL_M-1)
-#    else
-#      warning "PLL_M not specified"
-#      define LPC214X_USBPLLCFG_MSEL 0x00000004
-#    endif
-#    ifdef LPC214X_USBPLL_P
-#      if LPC214X_USBPLL_P == 1
-#        define LPC214X_USBPLLCFG_PSEL 0x00000000
-#      elif LPC214X_USBPLL_P == 2
-#        define LPC214X_USBPLLCFG_PSEL 0x00000020
-#      elif LPC214X_USBPLL_P == 4
-#        define LPC214X_USBPLLCFG_PSEL 0x00000040
-#      elif LPC214X_USBPLL_P == 8
-#        define LPC214X_USBPLLCFG_PSEL 0x00000060
-#      else
-#        error "Unrecognized value for PLL_P"
-#      endif
-#    endif
-#    define CONFIG_USBPLLCFG_VALUE (LPC214X_USBPLLCFG_PSEL|LPC214X_USBPLLCFG_MSEL)
-#  endif
-#endif
+ * <e> PLL Setup
+ * <i> 
+ * <i> CCLK - Processor Clock
+ * <i> Fcco - PLL Oscillator
+ *   <o1.0..4>   MSEL: PLL Multiplier Selection
+ *               <1-32><#-1>
+ *               <i> PLL Multiplier "M" Value
+ *               <i> CCLK = M * Fosc
+ *   <o1.5..6>   PSEL: PLL Divider Selection
+ *               <0=> 1   <1=> 2   <2=> 4   <3=> 8
+ *               <i> PLL Divider "P" Value
+ *               <i> Fcco = CCLK * 2 * P
+ *               <i> 156MHz <= Fcco <= 320MHz
+ * </e>
+*/
+#defin LPC214X_PLLCFG_VALUE 0x00000024
 
 /* Memory Accelerator Module (MAM) initialization values
  *
  * MAM Control Register
- *   Bit 0:1 Mode
+ *   BIT 0:1 Mode
  *           0 = Disabled
  *           1 = Partially Enabled
  *           2 = Fully Enabled
  * MAM Timing Register
- *   Bit 0:2 Fetch Cycles
+ *   BIT 0:2 Fetch Cycles
  *           0 = Reserved
  *           1 = 1
  *           2 = 2
@@ -167,111 +116,50 @@
  *           7 = 7
  */
 
-#ifndef CONFIG_MAMCR_VALUE /* Can be selected from config file */
-#  define CONFIG_MAMCR_VALUE  0x00000002
-#endif
+#define LPC214X_MAMCR_VALUE  0x00000002
+#define LPC214x_MAMTIM_VALUE 0x00000004
 
-#ifndef CONFIG_MAMTIM_VALUE /* Can be selected from config file */
-#  define CONFIG_MAMTIM_VALUE 0x00000004
-#endif
-
-/* APBDIV initialization values
+/* VPBDIV initialization values
  *
- * Bits 0:1 APB Peripheral Bus Clock Rate
- *          0 = APB Clock = CPU Clock / 4
- *          1 = APB Clock = CPU Clock
- *          2 = APB Clock = CPU Clock / 2
+ * BITS 0:1 VPB Peripheral Bus Clock Rate
+ *          0 = VPB Clock = CPU Clock / 4
+ *          1 = VPB Clock = CPU Clock
+ *          2 = VPB Clock = CPU Clock / 2
+ * BITS 4:5 XCLKDIV: XCLK Pin
+ *          0 = XCLK Pin = CPU Clock / 4
+ *          1 = XCLK Pin = CPU Clock
+ *          2 = XCLK Pin = CPU Clock / 2
  */
 
-#ifndef CONFIG_APBDIV_VALUE /* Can be selected from config file */
-#  ifdef LPC214X_APB_DIV
-#    if LPC214X_APB_DIV == 1
-#       define CONFIG_APBDIV_VALUE LPC214X_APBDIV_DIV1
-#    elif LPC214X_APB_DIV == 2
-#       define CONFIG_APBDIV_VALUE LPC214X_APBDIV_DIV2
-#    elif LPC214X_APB_DIV == 4
-#       define CONFIG_APBDIV_VALUE LPC214X_APBDIV_DIV4
-#    else
-#       error "Unrecognized value for APBDIV"
-#    endif
-#  else
-#    define CONFIG_APBDIV_VALUE LPC214X_APBDIV_DIV1
-#  endif
-#endif
+#define LPC214X_VPBDIV_VALUE 0x00000001
+
+/* External Memory Pins definitions
+ *
+ * CS0..3, OE, WE, BLS0..3,  D0..31, A2..23, JTAG Pins
+ */
+
+#define LPC214X_PINSEL2_VALUE 0x0e6149e4
 
 /* External Memory Controller (EMC) initialization values
  *
  * Bank Configuration n (BCFG0..3)
- *    Bit 0:3   IDCY: Idle Cycles (0-15)
- *    Bit 5:9   WST1: Wait States 1 (0-31)
- *    Bit 11:15 WST2: Wait States 2 (0-31)
- *    Bit 10    RBLE: Read Byte Lane Enable
- *    Bit 26    WP: Write Protect
- *    Bit 27    BM: Burst ROM
- *    Bit 28:29 MW: Memory Width  (0=8-bit 1=16-bit 2=32-bit 3=Reserved)
+ *    BIT 0:3   IDCY: Idle Cycles (0-15)
+ *    BIT 5:9   WST1: Wait States 1 (0-31)
+ *    BIT 11:15 WST2: Wait States 2 (0-31)
+ *    BIT 10    RBLE: Read Byte Lane Enable
+ *    BIT 26    WP: Write Protect
+ *    BIT 27    BM: Burst ROM
+ *    BIT 28:29 MW: Memory Width  (0=8-bit 1=16-bit 2=32-bit 3=Reserved)
  */
 
-#ifndef CONFIG_BCFG0_VALUE /* Can be selected from config file */
-#  define CONFIG_BCFG0_VALUE   0x0000fbef
-#endif
+#define LPC214X_BCFG0_VALUE   0x0000fbef
+#define LPC214X_BCFG1_VALUE   0x0000fbef
+#define LPC214X_BCFG2_VALUE   0x0000fbef
+#define LPC214X_BCFG3_VALUE   0x0000fbef
 
-#ifndef CONFIG_BCFG1_VALUE /* Can be selected from config file */
-#  define CONFIG_BCFG1_VALUE   0x0000fbef
-#endif
-
-#ifndef CONFIG_BCFG2_VALUE /* Can be selected from config file */
-#  define CONFIG_BCFG2_VALUE   0x0000fbef
-#endif
-
-#ifndef CONFIG_BCFG3_VALUE /* Can be selected from config file */
-#  define CONFIG_BCFG3_VALUE   0x0000fbef
-#endif
-
-/* The following are used to configure the ADC/DAC */
-#ifndef CONFIG_AD0CR_VALUE
-#  define CONFIG_AD0CR_VALUE   0x00200402; /* Setup A/D: 10-bit AIN0 @ 3MHz */
-#endif
-
-/* GIO Pin Selection Register settings
- *
- * PINSEL0 configures GPIO 0.0 through 0.15
- */
-
-#ifndef CONFIG_PINSEL0_VALUE /* Can be selected from config file */
-#  define CONFIG_PINSEL0_VALUE 0x00000000 /* Reset value */
-#endif
-
-/* PINSEL1 configures GPIO 0.16 through 0.30 and GPO */
-
-#ifndef CONFIG_PINSEL1_VALUE /* Can be selected from the config file */
-#  ifdef CONFIG_ADC_SETUP
-#    define CONFIG_PINSEL1_ADC    0x01000000 /* Enable DAC */
-#  else
-#    define CONFIG_PINSEL1_ADC    0x00000000 /* Reset value */
-#  endif
-#  ifdef CONFIG_USBDEV
-#    define CONFIG_PINSEL1_USBDEV 0x80004000 /* Enable Vbus and Connect LED */
-#  else
-#    define CONFIG_PINSEL1_USBDEV 0x00000000 /* Reset value */
-#  endif
-#  define CONFIG_PINSEL1_VALUE (CONFIG_PINSEL1_ADC|CONFIG_PINSEL1_USBDEV)
-#endif
-
-/* External Memory Pins definitions
- * Bit 0:1  Reserved
- * Bit 2    GPIO/DEBUG
- * Bit 3    GPIO/TRACE
- * Bit 31:4 Reserved
- * CS0..3, OE, WE, BLS0..3,  D0..31, A2..23, JTAG Pins
- */
-
-#ifndef CONFIG_PINSEL2_VALUE /* Can be selected from config file */
-#  define CONFIG_PINSEL2_VALUE 0x0e6149e4
-#endif
-
-/*****************************************************************************
+/********************************************************************
  * Macros
- *****************************************************************************/
+ ********************************************************************/
 
 /* Print a character on the UART to show boot status. This macro will
  * modify r0, r1, r2 and r14
@@ -289,7 +177,7 @@
 	.macro	configpinsel2, base, val
 #ifdef CONFIG_EXTMEM_MODE
 	ldr	\base, =LPC214X_PINSEL2
-	ldr	\val, =CONFIG_PINSEL2_VALUE
+	ldr	\val, =LPC214X_PINSEL2_VALUE
 	str	\val, [\base]
 #endif
 	.endm
@@ -301,145 +189,102 @@
 	ldr	\base, =LPC214X_EMC_BASE
 
 #ifdef CONFIG_BCFG0_SETUP
-	ldr	\val, =CONFIG_BCFG0_VALUE
+	ldr	\val, =LPC214X_BCFG0_VALUE
 	str	\val, [\base, #LPC214X_BCFG0_OFFSET]
 #endif
 
 #ifdef CONFIG_BCFG1_SETUP
-	ldr	\val, =CONFIG_BCFG1_VALUE
+	ldr	\val, =LPC214X_BCFG1_VALUE
 	str	\val, [\base, #LPC214X_BCFG1_OFFSET]
 #endif
 
 #ifdef CONFIG_BCFG2_SETUP
-	ldr	\val, =CONFIG_BCFG2_VALUE
+	ldr	\val, =LPC214X_BCFG2_VALUE
 	str	\val, [\base, #LPC214X_BCFG2_OFFSET]
 #endif
 
 #ifdef CONFIG_BCFG3_SETUP
-	ldr	\val, =CONFIG_BCFG3_VALUE
+	ldr	\val, =LPC214X_BCFG3_VALUE
 	str	\val, [\base, #LPC214X_BCFG3_OFFSET]
 #endif
 #endif
 	.endm
 
-/* Configure APBDIV */
+/* Configure VPBDIV */
 
-	.macro	configapbdiv, base, val
-#ifdef CONFIG_APBDIV_SETUP
-	ldr	\base, =LPC214X_APBDIV
-	ldr	\val, =CONFIG_APBDIV_VALUE
-	strb	\val, [\base]
+	.macro	configvpbdiv, base, val
+#ifdef CONFIG_VPBDIV_SETUP
+	ldr	\base, =LPC214X_VPBDIV
+	ldr	\val, =LPC214X_VPBDIV_VALUE
+	str	\val, [\base]
 #endif
 	.endm
 
 /* Configure the PLL */
 
 	.macro	configpll, base, val1, val2, val3
-#ifdef CONFIG_PLL_SETUP
-	ldr	\base, =LPC214X_PLL0_BASE
-	mov	\val1, #LPC214X_PLL_FEED1
-	mov	\val2, #LPC214X_PLL_FEED2
+#ifdef LPC214X_PLL_SETUP
+	ldr	\base, =LPC214X_PLL_BASE
+	mov	\val1, #0xaa
+	mov	\val2, #0x55
 
 	/* Configure and Enable PLL */
 
-	mov	\val3, #CONFIG_PLLCFG_VALUE
-	str	\val3, [\base, #LPC214X_PLL_CFG_OFFSET]
-	mov	\val3, #LPC214X_PLL_CON_PLLE
-	str	\val3, [\base, #LPC214X_PLL_CON_OFFSET]
-	str	\val1, [\base, #LPC214X_PLL_FEED_OFFSET]
-	str	\val2, [\base, #LPC214X_PLL_FEED_OFFSET]
+	mov	\val3, #LPC214X_PLLCFG_VALUE
+	str	\val3, [\base, #LPC214X_PLLCFG_OFFSET] 
+	mov	\val3, #LPC214X_PLLCON_PLLE
+	str	\val3, [\base, #LPC214X_PLLCON_OFFSET]
+	str	\val1, [\base, #LPC214X_PLLFEED_OFFSET]
+	str	\val2, [\base, #LPC214X_PLLFEED_OFFSET]
 
 	/* Wait until PLL Locked */
 1:
-	ldr	\val3, [\base, #LPC214X_PLL_STAT_OFFSET]
-	ands	\val3, \val3, #LPC214X_PLL_STAT_PLOCK
+	ldr	\val3, [\base, #LPC214X_PLLSTAT_OFFSET]
+	ands	\val3, \val3, #LPC214X_PLLSTAT_PLOCK
 	beq	1b
 
 	/* Switch to PLL Clock */
 
-	mov	\val3, #(LPC214X_PLL_CON_PLLE | LPC214X_PLL_CON_PLLC)
-	str	\val3, [\base, #LPC214X_PLL_CON_OFFSET]
-	str	\val1, [\base, #LPC214X_PLL_FEED_OFFSET]
-	str	\val2, [\base, #LPC214X_PLL_FEED_OFFSET]
+	mov	\val3, #(LPC214X_PLLCON_PLLE | LPC214X_PLLCON_PLLC)
+	str	\val3, [\base, #LPC214X_PLLCON__OFFSET]
+	str	\val1, [\base, #LPC214X_PLLFEED_OFFSET]
+	str	\val2, [\base, #LPC214X_PLLFEED_OFFSET]
 #endif
 	.endm
-
-	.macro	configusbpll, base, val1, val2, val3
-#ifdef CONFIG_USBDEV
-	ldr	\base, =LPC214X_PLL1_BASE
-	mov	\val1, #LPC214X_PLL_FEED1
-	mov	\val2, #LPC214X_PLL_FEED2
-
-	/* Configure and Enable PLL */
-
-	mov	\val3, #CONFIG_USBPLLCFG_VALUE
-	str	\val3, [\base, #LPC214X_PLL_CFG_OFFSET]
-	mov	\val3, #LPC214X_PLL_CON_PLLE
-	str	\val3, [\base, #LPC214X_PLL_CON_OFFSET]
-	str	\val1, [\base, #LPC214X_PLL_FEED_OFFSET]
-	str	\val2, [\base, #LPC214X_PLL_FEED_OFFSET]
-
-	/* Wait until PLL Locked */
-1:
-	ldr	\val3, [\base, #LPC214X_PLL_STAT_OFFSET]
-	ands	\val3, \val3, #LPC214X_PLL_STAT_PLOCK
-	beq	1b
-
-	/* Switch to PLL Clock */
-
-	mov	\val3, #(LPC214X_PLL_CON_PLLE | LPC214X_PLL_CON_PLLC)
-	str	\val3, [\base, #LPC214X_PLL_CON_OFFSET]
-	str	\val1, [\base, #LPC214X_PLL_FEED_OFFSET]
-	str	\val2, [\base, #LPC214X_PLL_FEED_OFFSET]
-#endif
-	.endm
-
 
 /* Configure the Memory Accelerator Module (MAM) */
 
 	.macro	configmam, base, val
 #ifdef CONFIG_MAM_SETUP
 	ldr	\base, =LPC214X_MAM_BASE
-	mov	\val, #CONFIG_MAMTIM_VALUE
-	str	\val, [\base, #LPC214x_MAM_TIM_OFFSET] 
-	mov	\val, #CONFIG_MAMCR_VALUE
-	str	\val, [\base, #LPC214X_MAM_CR_OFFSET] 
+	mov	\val, #LPC214x_MAMTIM_VALUE
+	str	\val, [\base, #LPC214x_MAMTIM_OFFSET] 
+	mov	\val, #LPC214X_MAMCR_VALUE
+	str	\val, [\base, #LPC214X_MAMCR_OFFSET] 
 #endif
 	.endm
 
 /* Setup MEMMAP for the selected mode of operation */
 
 	.macro	configmemmap, base, val
-	ldr	\base, =LPC214X_MEMMAP
+	ldr	r0, =LPC214X_MEMMAP
 #if defined(CONFIG_EXTMEM_MODE)
-	mov	\val, #3
+	mov	r1, #3
 #elif defined(CONFIG_RAM_MODE)
-	mov	\val, #2
+	mov	r1, #2
 #else /* Setting the default should not be necessary */
-	mov	\val, #1
+	mov	r1, #1
 #endif
-	str	\val, [\base]
+	str	r1, [r0]
 	.endm
 
-	.macro	configdac, base, tmp
-#ifdef CONFIG_ADC_SETUP
-	ldr	\base, =LPC214X_AD0_BASE
-	ldr	\tmp, =CONFIG_AD0CR_VALUE
-	str	\tmp, [\base, #LPC214X_AD_ADCR_OFFSET]
-
-	ldr	\base,=LPC214X_PINSEL1
-	ldr	\tmp, =CONFIG_PINSEL1_VALUE
-	str	\tmp, [\base]
-#endif
-	.endm
-
-/*****************************************************************************
+/********************************************************************
  * Text
- *****************************************************************************/
+ ********************************************************************/
 
 	.text
 
-/*****************************************************************************
+/********************************************************************
  * Name: _vector_table
  *
  * Description:
@@ -448,7 +293,7 @@
  *   the vector table is the reset vector and this is the code that
  *   will execute whn the processor is reset.
  *
- *****************************************************************************/
+ ********************************************************************/
 
 	.globl	_vector_table
 	.type	_vector_table, %function
@@ -458,7 +303,7 @@ _vector_table:
 	ldr	pc, .Lswihandler		/* 0x08: Software interrupt */
 	ldr	pc, .Lprefetchaborthandler	/* 0x0c: Prefetch abort */
 	ldr	pc, .Ldataaborthandler		/* 0x10: Data abort */
-	.long	0				/* 0x14: Vector checksum */
+	ldr	pc, .Laddrexcptnhandler		/* 0x14: Address exception */
 	ldr	pc, .Lirqhandler		/* 0x18: IRQ */
 	ldr	pc, .Lfiqhandler		/* 0x1c: FIQ */
 
@@ -467,6 +312,7 @@ _vector_table:
 	.globl	up_vectorswi
 	.globl	up_vectorprefetch
 	.globl	up_vectordata
+	.globl	up_vectoraddrexcptn
 	.globl	up_vectorirq
 	.globl	up_vectorfiq
 
@@ -480,13 +326,16 @@ _vector_table:
 	.long	up_vectorprefetch
 .Ldataaborthandler:
 	.long	up_vectordata
+.Laddrexcptnhandler:
+	.long	up_vectoraddrexcptn
 .Lirqhandler:
 	.long	up_vectorirq
 .Lfiqhandler:
 	.long	up_vectorfiq
 	.size	_vector_table, . - _vector_table
+	.end
 
-/*****************************************************************************
+/********************************************************************
  * Name: __start
  *
  * Description:
@@ -494,7 +343,7 @@ _vector_table:
  *   the processor is reset.  It initializes hardware and then gives
  *   control to NuttX.
  *
- *****************************************************************************/
+ ********************************************************************/
 
 	.global __start
 	.type	__start, #function
@@ -513,14 +362,13 @@ __start:
 
 	configemc	r0, r1
 
-	/* Configure APBDIV */
+	/* Configure VPBDIV */
 
-	configapbdiv	r0, r1
-
-	/* Configure the PLL(s) */
+	configvpbdiv	r0, r1
+	
+	/* Configure the PLL */
 
 	configpll	r0, r1, r2, r3
-	configusbpll	r0, r1, r2, r3
 
 	/* Configure the Memory Accelerator Module (MAM) */
 
@@ -529,16 +377,7 @@ __start:
 	/* Setup MEMMAP for the selected mode of operation */
 
 	configmemmap	r0, r1
-
-	/* Configure the DAC and ADC */
 	
-	configdac	r0, r1
-
-	/* Configure the uart so that we can get debug output as soon
-	 * as possible.  Modifies r0, r1, r2, and r14.
-	 */
-
-        bl	up_lowsetup
 	showprogress 'A'
 
 	/* Setup system stack (and get the BSS range) */
@@ -557,7 +396,7 @@ __start:
 
 	/* Copy system .data sections to new home in RAM. */
 
-#ifdef CONFIG_BOOT_RUNFROMFLASH
+#ifdef CONFIG_BOOT_FROM_FLASH
 
 	adr	r3, LC2
 	ldmia	r3, {r0, r1, r2}
@@ -571,13 +410,14 @@ __start:
 	/* Perform early serial initialization */
 
 	mov	fp, #0
-#ifdef CONFIG_USE_EARLYSERIALINIT
 	bl	up_earlyserialinit
+
+#ifdef CONFIG_DEBUG
+	mov	r0, #'C'
+	bl	up_putc
+	mov	r0, #'\n'
+	bl	up_putc
 #endif
-
-	showprogress 'C'
-	showprogress '\n'
-
 	/* Initialize onboard LEDs */
 
 #ifdef CONFIG_ARCH_LEDS
@@ -592,16 +432,16 @@ __start:
 	 * _sbss is the start of the BSS region (see ld.script)
 	 * _ebss is the end of the BSS regsion (see ld.script)
 	 * The idle task stack starts at the end of BSS and is
-	 * of size CONFIG_IDLETHREAD_STACKSIZE.  The heap continues
+	 * of size CONFIG_PROC_STACK_SIZE.  The heap continues
 	 * from there until the end of memory.  See g_heapbase
 	 * below.
 	 */
 
 LC0:	.long	_sbss
 	.long	_ebss
-	.long	_ebss+CONFIG_IDLETHREAD_STACKSIZE-4
+	.long	_ebss+CONFIG_PROC_STACK_SIZE-4
 
-#ifdef CONFIG_BOOT_RUNFROMFLASH
+#ifdef CONFIG_BOOT_FROM_FLASH
 LC2:	.long	_eronly	/* Where .data defaults are stored in FLASH */
 	.long	_sdata	/* Where .data needs to reside in SDRAM */
 	.long	_edata
@@ -618,7 +458,7 @@ LC2:	.long	_eronly	/* Where .data defaults are stored in FLASH */
 	.globl	g_heapbase
 	.type	g_heapbase, object
 g_heapbase:
-	.long	_ebss+CONFIG_IDLETHREAD_STACKSIZE
+	.long	_ebss+CONFIG_PROC_STACK_SIZE
 	.size	g_heapbase, .-g_heapbase
 
 	.end

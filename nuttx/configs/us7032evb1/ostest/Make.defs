@@ -1,5 +1,5 @@
 ##############################################################################
-# configs/us7032evb1/ostest/Make.defs
+# configs/olimex-strp711/ostest/Make.defs
 #
 #   Copyright (C) 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -42,16 +42,15 @@ else
 			  -fomit-frame-pointer
 endif
 
-ARCHCPUFLAGS		= -m1 -fno-builtin
+ARCHCPUFLAGS		= -mapcs-32 -mcpu=arm7tdmi -msoft-float -fno-builtin
 ARCHPICFLAGS		= -fpic
 ARCHWARNINGS		= -Wall -Wstrict-prototypes -Wshadow
 ARCHDEFINES		=
 ARCHINCLUDES		= -I. -isystem $(TOPDIR)/include
 ARCHSCRIPT		= -T$(TOPDIR)/configs/$(CONFIG_ARCH_BOARD)/ostest/ld.script
 
-CROSSDEV		= sh-elf-
+CROSSDEV		= arm-elf-
 CC			= $(CROSSDEV)gcc
-CPP			= $(CROSSDEV)gcc -E
 LD			= $(CROSSDEV)ld
 AR			= $(CROSSDEV)ar rcs
 NM			= $(CROSSDEV)nm
@@ -60,7 +59,6 @@ OBJDUMP			= $(CROSSDEV)objdump
 
 CFLAGS			= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) \
 			  $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) -pipe
-CPPFLAGS		= $(ARCHINCLUDES) $(ARCHDEFINES)
 AFLAGS			= $(CFLAGS) -D__ASSEMBLY__
 
 OBJEXT			= .o
@@ -70,11 +68,6 @@ EXEEXT			=
 ifeq ("${CONFIG_DEBUG}","y")
   LDFLAGS		+= -g
 endif
-
-define PREPROCESS
-	@echo "CPP: $1->$2"
-	@$(CPP) $(CPPFLAGS) $1 -o $2
-endef
 
 define COMPILE
 	@echo "CC: $1"

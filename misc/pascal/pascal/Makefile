@@ -77,7 +77,7 @@ check_libs:
 	fi
 
 $(BINDIR-y)/pascal: check_libs $(PASOBJS)
-	$(CC) -o $@ $(LDFLAGS) $(PASOBJS) -linsn -lpoff -lpas -lm
+	$(CC) -o $@ $(LDFLAGS) $(PASOBJS) -linsn -lpas -lpoff -lm
 
 pascal: $(BINDIR-y)/pascal
 

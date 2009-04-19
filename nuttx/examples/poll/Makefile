@@ -38,7 +38,7 @@
 
 ASRCS	= 
 AOBJS	= $(ASRCS:.S=$(OBJEXT))
-CSRCS	= poll_main.c poll_listener.c select_listener.c net_listener.c net_reader.c
+CSRCS	= poll_main.c poll_listener.c
 COBJS	= $(CSRCS:.c=$(OBJEXT))
 
 SRCS	= $(ASRCS) $(CSRCS)
@@ -70,6 +70,6 @@ clean:
 	$(call CLEAN)
 
 distclean: clean
-	@rm -f Make.dep .depend host
+	@rm -f Make.dep .depend
 
 -include Make.dep

@@ -38,17 +38,11 @@
  ****************************************************************************/
  
 #include <nuttx/config.h>
-
 #include <sys/types.h>
-#include <unistd.h>
-
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <net/if.h>
-
-#include <net/uip/uip.h>
 #include <net/uip/uip-lib.h>
-#include <net/uip/resolv.h>
 #include <net/uip/webclient.h>
 
 /****************************************************************************
@@ -66,7 +60,7 @@
 #endif
 
 #ifndef CONFIG_EXAMPLE_WGET_DRIPADDR
-#  error "You must define CONFIG_EXAMPLE_WGET_DRIPADDR"
+#  error "You must define "
 #endif
 
 #ifndef CONFIG_EXAMPLE_WGET_NETMASK
@@ -85,24 +79,6 @@
  * Private Data
  ****************************************************************************/
 
-static char g_iobuffer[512];
-
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
-/****************************************************************************
- * Name: callback
- ****************************************************************************/
-
-static void callback(FAR char **buffer, int offset, int datend,
-                     FAR int *buflen, FAR void *arg)
-{
-  (void)write(1, &((*buffer)[offset]), datend - offset);
-}
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
 /****************************************************************************
  * user_initialize
  ****************************************************************************/
@@ -156,6 +132,6 @@ int user_start(int argc, char *argv[])
 
   /* Then start the server */
   
-  wget(CONFIG_EXAMPLE_WGET_URL, g_iobuffer, 512, callback, NULL);
+  wget(Needs more work);
   return 0;
 }

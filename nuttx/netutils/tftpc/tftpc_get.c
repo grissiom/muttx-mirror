@@ -34,6 +34,10 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * Compilation Switches
+ ****************************************************************************/
+
+/****************************************************************************
  * Included Files
  ****************************************************************************/
 
@@ -91,13 +95,12 @@ static inline ssize_t tftp_write(int fd, const ubyte *buf, size_t len)
 
       if (nbyteswritten < 0)
         {
-          ndbg("write failed: %d\n", errno);
+          ndbg(g_tftpcallfailed, "write", errno);
           return ERROR;
         }
 
       /* Handle partial writes */
 
-      nvdbg("Wrote %d bytes to file\n", nbyteswritten);
       left -= nbyteswritten;
       buf  += nbyteswritten;
     }
@@ -117,7 +120,7 @@ static inline int tftp_parsedatapacket(const ubyte *packet,
        *blockno = (uint16)packet[2] << 8 | (uint16)packet[3];
        return OK;
     }
-#if defined(CONFIG_DEBUG) && defined(CONFIG_DEBUG_NET)
+#if CONFIG_DEBUG
   else if (*opcode == TFTP_ERR)
     {
       (void)tftp_parseerrpacket(packet);
@@ -149,23 +152,29 @@ int tftpget(const char *remote, const char *local, in_addr_t addr, boolean binar
   struct sockaddr_in from;    /* The address the last UDP message recv'd from */
   ubyte *packet;              /* Allocated memory to hold one packet */
   uint16 blockno = 0;         /* The current transfer block number */
+  uint16 port = 0;            /* This is the port number for the transfer */
   uint16 opcode;              /* Received opcode */
   uint16 rblockno;            /* Received block number */
   int len;                    /* Generic length */
   int sd;                     /* Socket descriptor for socket I/O */
   int fd;                     /* File descriptor for file I/O */
   int retry;                  /* Retry counter */
-  int nbytesrecvd = 0;        /* The number of bytes received in the packet */
+  int nbytesrecvd;            /* The number of bytes received in the packet */
   int ndatabytes;             /* The number of data bytes received */
   int result = ERROR;         /* Assume failure */
   int ret;                    /* Generic return status */
+
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+  uint16 lastacked = 0;       /* The last block number that was ACK'ed */
+  int ablockno;               /* Number of un-ACKed packets */
+#endif
 
   /* Allocate the buffer to used for socket/disk I/O */
 
   packet = (ubyte*)zalloc(TFTP_IOBUFSIZE);
   if (!packet)
     {
-      ndbg("packet memory allocation failure\n");
+      ndbg(g_tftpnomemory, "packet");
       errno = ENOMEM;
       goto errout;
     }
@@ -175,7 +184,7 @@ int tftpget(const char *remote, const char *local, in_addr_t addr, boolean binar
   fd = open(local, O_WRONLY|O_CREAT|O_TRUNC, 0666);
   if (fd < 0)
     {
-      ndbg("open failed: %d\n", errno);
+      ndbg(g_tftpcallfailed, "open", errno);
       goto errout_with_packet;
    }
 
@@ -187,10 +196,22 @@ int tftpget(const char *remote, const char *local, in_addr_t addr, boolean binar
       goto errout_with_fd;
     }
 
+  /* Send the read request */
+
+  len = tftp_mkreqpacket(packet, TFTP_RRQ, remote, binary);
+  ret = tftp_sendto(sd, packet, len, &server);
+  if (ret != len)
+    {
+      goto errout_with_sd;
+    }
+
   /* Then enter the transfer loop.  Loop until the entire file has
    * been received or until an error occurs.
    */
 
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+  ablockno = CONFIG_NETUTILS_TFTP_ACKPACKETS-1;
+#endif
   do
     {
       /* Increment the TFTP block number for the next transfer */
@@ -204,29 +225,6 @@ int tftpget(const char *remote, const char *local, in_addr_t addr, boolean binar
 
       for (retry = 0; retry < TFTP_RETRIES; retry++)
         {
-          /* Send the read request using the well-known port number before
-           * receiving the first block.  Each retry of the first block will
-           * re-send the request.
-           */
-
-          if (blockno == 1)
-            {
-              len             = tftp_mkreqpacket(packet, TFTP_RRQ, remote, binary);
-              server.sin_port = HTONS(CONFIG_NETUTILS_TFTP_PORT);
-              ret             = tftp_sendto(sd, packet, len, &server);
-              if (ret != len)
-                {
-                  goto errout_with_sd;
-                }
-
-              /* Subsequent sendto will use the port number selected by the TFTP
-               * server in the DATA packet.  Setting the server port to zero
-               * here indicates that we have not yet received the server port number.
-               */
-
-              server.sin_port = 0;
-            }
-
           /* Get the next packet from the server */
 
           nbytesrecvd = tftp_recvfrom(sd, packet, TFTP_IOBUFSIZE, &from);
@@ -235,20 +233,28 @@ int tftpget(const char *remote, const char *local, in_addr_t addr, boolean binar
 
           if (nbytesrecvd >= 0)
             {
+              /* Replace the server port to the one in the response */
+
+              if (!port)
+                {
+                  port            = from.sin_port;
+                  server.sin_port = port;
+                }
+
               /* Verify the sender address and port number */
 
               if (server.sin_addr.s_addr != from.sin_addr.s_addr)
                 {
-                  nvdbg("Invalid address in DATA\n");
+                  nvdbg(g_tftpaddress, "recvfrom");
                   retry--;
                   continue;
                 }
 
-              if (server.sin_port && server.sin_port != from.sin_port)
+              if (port != from.sin_port)
                 {
-                  nvdbg("Invalid port in DATA\n");
+                  nvdbg(g_tftpport, "recvfrom");
                   len = tftp_mkerrpacket(packet, TFTP_ERR_UNKID, TFTP_ERRST_UNKID);
-                  ret = tftp_sendto(sd, packet, len, &from);
+                  ret = tftp_sendto(sd, packet, len, &server);
                   retry--;
                   continue;
                 }
@@ -256,26 +262,19 @@ int tftpget(const char *remote, const char *local, in_addr_t addr, boolean binar
               /* Parse the incoming DATA packet */
 
               if (nbytesrecvd < TFTP_DATAHEADERSIZE ||
-                  tftp_parsedatapacket(packet, &opcode, &rblockno) != OK ||
+                  tftp_parsedatapacket(packet, &opcode, &blockno) != OK ||
                   blockno != rblockno)
                 {
                   nvdbg("Parse failure\n");
                   if (opcode > TFTP_MAXRFC1350)
                     {
                       len = tftp_mkerrpacket(packet, TFTP_ERR_ILLEGALOP, TFTP_ERRST_ILLEGALOP);
-                      ret = tftp_sendto(sd, packet, len, &from);
+                      ret = tftp_sendto(sd, packet, len, &server);
                     }
                   continue;
                 }
 
-              /* Replace the server port to the one in the good data response */
-
-              if (!server.sin_port)
-                {
-                  server.sin_port = from.sin_port;
-                }
-
-              /* Then break out of the loop */
+              /* Break out of the loop when we receive a good data packet */
 
               break;
             }
@@ -285,21 +284,47 @@ int tftpget(const char *remote, const char *local, in_addr_t addr, boolean binar
 
       if (retry == TFTP_RETRIES)
         {
-          nvdbg("Retry limit exceeded\n");
+          nvdbg(g_tftptoomanyretries);
           goto errout_with_sd;
         }
 
       /* Write the received data chunk to the file */
 
       ndatabytes = nbytesrecvd - TFTP_DATAHEADERSIZE;
-      tftp_dumpbuffer("Recvd DATA", packet + TFTP_DATAHEADERSIZE, ndatabytes);
       if (tftp_write(fd, packet + TFTP_DATAHEADERSIZE, ndatabytes) < 0)
         {
           goto errout_with_sd;
         }
 
-      /* Send the acknowledgment */
+      /* Send the acknowledgment if we have reach the configured block count */
 
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+      ablockno++;
+      if (ablockno == CONFIG_NETUTILS_TFTP_ACKPACKETS)
+#endif
+        {
+          len = tftp_mkackpacket(packet, blockno);
+          ret = tftp_sendto(sd, packet, len, &server);
+          if (ret != len)
+            {
+              goto errout_with_sd;
+            }
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+          lastacked = blockno;
+#endif
+          nvdbg("ACK blockno %d\n", blockno);
+        }
+    }
+  while (ndatabytes >= TFTP_DATASIZE);
+
+  /* The final packet of the transfer will be a partial packet
+   *
+   * If the final packet(s) were not ACK'ed, then we will ACK them here
+   */
+
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+  if (ndatabytes < blockno != lastacked)
+    {
       len = tftp_mkackpacket(packet, blockno);
       ret = tftp_sendto(sd, packet, len, &server);
       if (ret != len)
@@ -308,7 +333,7 @@ int tftpget(const char *remote, const char *local, in_addr_t addr, boolean binar
         }
       nvdbg("ACK blockno %d\n", blockno);
     }
-  while (ndatabytes >= TFTP_DATASIZE);
+#endif
 
   /* Return success */
 

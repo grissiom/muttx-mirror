@@ -41,7 +41,6 @@
  *************************************************************/
 
 #include <nuttx/config.h>
-#include <nuttx/compiler.h>
 #include <sys/types.h>
 #include <debug.h>
 
@@ -53,16 +52,13 @@
 # define CONFIG_DEBUG 0
 #endif
 
+#define DEBUG(stream, format, arg...) dbg(format, ##arg)
+
 #ifndef CONFIG_TRACE
 # define CONFIG_TRACE 0
 #endif
 
-#ifdef CONFIG_CPP_HAVE_VARARGS
-#  define DEBUG(stream, format, arg...) dbg(format, ##arg)
-#  define TRACE(stream, format, arg...) dbg(format, ##arg)
-#else
-#  define DEBUG dbg
-#  define TRACE dbg
-#endif
+#define TRACE(stream, format, arg...) dbg(format, ##arg)
+#define errno *get_errno_ptr()
 
 #endif /* __KEYWORDS_H */

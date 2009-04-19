@@ -1,5 +1,5 @@
 /****************************************************************************
- * graphics/nxsu/nxsu_redrawreq.c
+ * graphics/nxmu/nxsu_redrawreq.c
  *
  *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -80,24 +80,26 @@
 
 void nxfe_redrawreq(FAR struct nxbe_window_s *wnd, FAR const struct nxgl_rect_s *rect)
 {
-  struct nxgl_rect_s relrect;
+  FAR struct nxbe_state_s  *be  = wnd->be;
+  FAR struct nxfe_state_s  *fe  = (FAR struct nxfe_state_s *)be;
+  struct nxgl_rect_s        relrect;
 
 #ifdef CONFIG_DEBUG
-  if (!wnd)
+  if (wnd)
     {
       return;
     }
 #endif
 
-  if (wnd->cb->redraw)
+  if (fe->cb->redraw)
     {
       /* Convert the frame rectangle to a window-relative rectangle */
 
-      nxgl_rectoffset(&relrect, rect, -wnd->bounds.pt1.x, -wnd->bounds.pt1.y);
+      nxgl_rectoffset(&relrect, rect, -wnd->origin.x, -wnd->origin.y);
 
       /* And request the redraw */
 
-      wnd->cb->redraw((NXWINDOW)wnd, &relrect, FALSE, wnd->arg);
+      fe->cb->redraw((NXWINDOW)wnd, &relrect, FALSE);
     }
 }
 

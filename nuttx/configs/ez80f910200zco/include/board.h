@@ -1,7 +1,7 @@
 /****************************************************************************
  * arch/ez80f910200zco/include/board.h
  *
- *   Copyright (C) 2008, 2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -43,28 +43,18 @@
 /****************************************************************************
  * Definitions
  ****************************************************************************/
+ 
+/* LED pattern definitions */
 
-/* Clocking */
-
-#define EZ80_SYS_CLK_FREQ           50000000
-
-/* LED pattern definitions                 ON                OFF            */
-
-#define LED_STARTED                 0  /*  '0'               N/A            */
-#define LED_HEAPALLOCATE            1  /*  'H'               N/A            */
-#define LED_IRQSENABLED             2  /*  'E'               N/A            */
-#define LED_STACKCREATED            3  /*  'C'               N/A            */
-#define LED_IDLE                    4  /*  'R'               N/A            */
-#define LED_INIRQ                   5  /*  (ignored)        (ignored)       */
-#define LED_ASSERTION               6  /*  'A'              (previous)      */
-#define LED_SIGNAL                  7  /*  'S'              (previous)      */
-#define LED_PANIC                   8  /*  '*'              (previous)      */
-
-/* Button definitions */
-
-#define BUTTON_PB0                 0x01 /* PB0: SW1 Bit 0 of GPIO Port B    */
-#define BUTTON_PB1                 0x02 /* PB1: SW2 Bit 1 of GPIO Port B    */
-#define BUTTON_PB2                 0x04 /* PB2: SW3 Bit 2 of GPIO Port B    */
+#define LED_STARTED                 0
+#define LED_HEAPALLOCATE            1
+#define LED_IRQSENABLED             2
+#define LED_STACKCREATED            3
+#define LED_IDLE                    4
+#define LED_INIRQ                   5
+#define LED_ASSERTION               6
+#define LED_SIGNAL                  6
+#define LED_PANIC                   7
 
 /****************************************************************************
  * Public Functions
@@ -76,11 +66,6 @@
 extern "C" {
 #else
 #define EXTERN extern
-#endif
-
-#ifdef CONFIG_ARCH_BUTTONS
-EXTERN void up_buttoninit(void);
-EXTERN ubyte up_buttons(void);
 #endif
 
 #undef EXTERN

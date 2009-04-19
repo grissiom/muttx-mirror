@@ -40,7 +40,6 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -83,9 +82,10 @@
  *
  ****************************************************************************/
 
-void nxmu_kbdin(FAR struct nxfe_state_s *fe, ubyte nch, FAR ubyte *ch)
+void nxmu_kbdin(FAR struct nxs_server_s *svr, ubyte nch, ubyte *ch)
 {
-  FAR struct nxclimsg_kbdin_s *outmsg;
+  struct nxbe_window_s *wnd;
+  FAR struct nxclimgs_kbdin_s *outmsg;
   int size;
   int ret;
   int i;
@@ -94,22 +94,22 @@ void nxmu_kbdin(FAR struct nxfe_state_s *fe, ubyte nch, FAR ubyte *ch)
    * character data.
    */
 
-  size   = sizeof(struct nxclimsg_kbdin_s) + nch - 1;
-  outmsg = (FAR struct nxclimsg_kbdin_s *)malloc(size);
+  size   = sizeof(struct nxclimgs_kbdin_s) + nch - 1;
+  outmsg = (FAR struct nxclimgs_kbdin_s *)malloc(size);
   if (outmsg)
     {
       /* Give the keypad input only to the top child */
 
-      outmsg->msgid = NX_CLIMSG_KBDIN;
-      outmsg->wnd   = fe->be.topwnd;
-      outmsg->nch   = nch;
+      outsg->msgid = NX_SVRMSG_KBDIN;
+      outmsg->wnd  = svr->topwnd;
+      outmsg->nch  = nch;
 
-      for (i = 0; i < nch; i++)
+      for (i = 0; i < nch; i+)
         {
           outmsg->ch[i] = ch[i];
         }
 
-      ret = mq_send(fe->be.topwnd->conn->swrmq, outmsg, size, NX_SVRMSG_PRIO);
+      ret = mq_send(svr->topwnd->conn->swrmq, outmsg, size, NX_SVRMSG_PRIO);
       if (ret < 0)
         {
           gdbg("mq_send failed: %d\n", errno);

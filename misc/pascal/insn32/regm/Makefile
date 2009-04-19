@@ -84,7 +84,7 @@ check_libs:
 	fi
 
 $(BINDIR)/regm: check_libs $(REGMOBJS)
-	$(CC) -o $@ $(LDFLAGS) $(REGMOBJS) -linsn -lpoff -lpas
+	$(CC) -o $@ $(LDFLAGS) $(REGMOBJS) -lpas -linsn -lpoff
 
 regm: $(BINDIR)/regm
 

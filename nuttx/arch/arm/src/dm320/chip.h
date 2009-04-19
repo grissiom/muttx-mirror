@@ -1,7 +1,7 @@
 /************************************************************************************
- * arch/arm/src/dm320/chip.h
+ * dm320/chip.h
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -41,14 +41,10 @@
  ************************************************************************************/
 
 #include "dm320_memorymap.h"
-#include "dm320_clkc.h"
-#include "dm320_ahb.h"
-#include "dm320_busc.h"
 #include "dm320_uart.h"
 #include "dm320_timer.h"
 #include "dm320_intc.h"
 #include "dm320_gio.h"
-#include "dm320_usb.h"
 
 /************************************************************************************
  * Definitions

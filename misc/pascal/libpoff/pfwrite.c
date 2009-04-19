@@ -1,5 +1,5 @@
 /**********************************************************************
- * libpoff/pfwrite.c
+ * pfwrite.c
  * Write a POFF file
  *
  *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
@@ -116,10 +116,6 @@ static void poffWriteFileHeader(poffHandle_t handle, FILE *poffFile)
 
   poffInfo->fileHeader.fh_shnum = poffCountSections(handle);
 
-  /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
-
-  poffSwapFileHeader(&poffInfo->fileHeader);
-
   /* Write the POFF file header */
 
   entriesWritten = fwrite(&poffInfo->fileHeader, sizeof(poffFileHeader_t),
@@ -129,30 +125,6 @@ static void poffWriteFileHeader(poffHandle_t handle, FILE *poffFile)
       errmsg("Failed to write POFF header: %s\n", strerror(errno));
       fatal(ePOFFWRITEERROR);
     }
-
-  /* Restore fields to host order */
-
-  poffSwapFileHeader(&poffInfo->fileHeader);
-}
-
-/***********************************************************************/
-
-static size_t poffWriteSectionHeader(poffSectionHeader_t *pheader, FILE *poffFile)
-{
-  size_t entriesWritten;
-
-  /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
-
-  poffSwapSectionHeader(pheader);
-
-  /* Write the POFF section header */
-
-  entriesWritten = fwrite(pheader, sizeof(poffSectionHeader_t), 1, poffFile);
-
-  /* Restore fields to host order */
-
-  poffSwapSectionHeader(pheader);
-  return entriesWritten;
 }
 
 /***********************************************************************/
@@ -181,7 +153,9 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       /* Then write the section header to the output file */
 
-      entriesWritten = poffWriteSectionHeader(&poffInfo->progSection, poffFile);
+      entriesWritten = fwrite(&poffInfo->progSection,
+			      sizeof(poffSectionHeader_t),
+			      1, poffFile);
       if (entriesWritten != 1)
 	{
 	  errmsg("Failed to write program section header: %s\n",
@@ -202,7 +176,9 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       /* Then write the section header to the output file */
 
-      entriesWritten = poffWriteSectionHeader(&poffInfo->roDataSection, poffFile);
+      entriesWritten = fwrite(&poffInfo->roDataSection,
+			      sizeof(poffSectionHeader_t),
+			      1, poffFile);
       if (entriesWritten != 1)
 	{
 	  errmsg("Failed to write data section header: %s\n",
@@ -223,7 +199,9 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       /* Then write the section header to the output file */
 
-      entriesWritten = poffWriteSectionHeader(&poffInfo->symbolTableSection, poffFile);
+      entriesWritten = fwrite(&poffInfo->symbolTableSection,
+			      sizeof(poffSectionHeader_t),
+			      1, poffFile);
       if (entriesWritten != 1)
 	{
 	  errmsg("Failed to write symbol table section header: %s\n",
@@ -244,7 +222,9 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       /* Then write the section header to the output file */
 
-      entriesWritten = poffWriteSectionHeader(&poffInfo->relocSection, poffFile);
+      entriesWritten = fwrite(&poffInfo->relocSection,
+			      sizeof(poffSectionHeader_t),
+			      1, poffFile);
       if (entriesWritten != 1)
 	{
 	  errmsg("Failed to write relocation section header: %s\n",
@@ -265,7 +245,9 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       /* Then write the section header to the output file */
 
-      entriesWritten = poffWriteSectionHeader(&poffInfo->fileNameTableSection, poffFile);
+      entriesWritten = fwrite(&poffInfo->fileNameTableSection,
+			      sizeof(poffSectionHeader_t),
+			      1, poffFile);
       if (entriesWritten != 1)
 	{
 	  errmsg("Failed to write file table section header: %s\n",
@@ -286,7 +268,9 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       /* Then write the section header to the output file */
 
-      entriesWritten = poffWriteSectionHeader(&poffInfo->lineNumberSection, poffFile);
+      entriesWritten = fwrite(&poffInfo->lineNumberSection,
+			      sizeof(poffSectionHeader_t),
+			      1, poffFile);
       if (entriesWritten != 1)
 	{
 	  errmsg("Failed to write line number section header: %s\n",
@@ -307,7 +291,9 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
       /* Then write the section header to the output file */
 
-      entriesWritten = poffWriteSectionHeader(&poffInfo->debugFuncSection, poffFile);
+      entriesWritten = fwrite(&poffInfo->debugFuncSection,
+			      sizeof(poffSectionHeader_t),
+			      1, poffFile);
       if (entriesWritten != 1)
 	{
 	  errmsg("Failed to write debug section header: %s\n",
@@ -328,7 +314,9 @@ static void poffWriteSectionHeaders(poffHandle_t handle, FILE *poffFile)
 
   /* Then write the section header to the output file */
 
-  entriesWritten = poffWriteSectionHeader(&poffInfo->stringTableSection, poffFile);
+  entriesWritten = fwrite(&poffInfo->stringTableSection,
+			  sizeof(poffSectionHeader_t),
+			  1, poffFile);
   if (entriesWritten != 1)
     {
       errmsg("Failed to write string table section header: %s\n",
@@ -382,12 +370,6 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
     {
       if (!poffInfo->symbolTable) fatal(ePOFFCONFUSION);
 
-      /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
-
-      poffSwapSymbolTableData(poffInfo);
-
-      /* Write the symbol table entries in big-endian order */
-
       entriesWritten = fwrite(poffInfo->symbolTable, sizeof(ubyte),
 			      poffInfo->symbolTableSection.sh_size, poffFile);
       if (entriesWritten != poffInfo->symbolTableSection.sh_size)
@@ -396,10 +378,6 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 		 strerror(errno));
 	  fatal(ePOFFWRITEERROR);
 	}
-
-      /* Restore host data order */
-
-      poffSwapSymbolTableData(poffInfo);
     }
 
   /* Write the relocation table section data  (if we have one) */
@@ -407,12 +385,6 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
   if (HAVE_RELOC_SECTION)
     {
       if (!poffInfo->relocTable) fatal(ePOFFCONFUSION);
-
-      /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
-
-      poffSwapRelocationData(poffInfo);
-
-      /* Write the relocation table entries in big-endian order */
 
       entriesWritten = fwrite(poffInfo->relocTable, sizeof(ubyte),
 			      poffInfo->relocSection.sh_size, poffFile);
@@ -422,10 +394,6 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 		 strerror(errno));
 	  fatal(ePOFFWRITEERROR);
 	}
-
-      /* Restore host data order */
-
-      poffSwapRelocationData(poffInfo);
     }
 
   /* Write the file table section data (if we have one) */
@@ -433,12 +401,6 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
   if (HAVE_FILE_TABLE)
     {
       if (!poffInfo->fileNameTable) fatal(ePOFFCONFUSION);
-
-      /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
-
-      poffSwapFileTableData(poffInfo);
-
-      /* Write the file table entries in big-endian order */
 
       entriesWritten = fwrite(poffInfo->fileNameTable, sizeof(ubyte),
 			      poffInfo->fileNameTableSection.sh_size,
@@ -449,10 +411,6 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 		 strerror(errno));
 	  fatal(ePOFFWRITEERROR);
 	}
-
-      /* Restore host data order */
-
-      poffSwapFileTableData(poffInfo);
     }
 
   /* Write the line number section data (if we have one) */
@@ -460,12 +418,6 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
   if (HAVE_LINE_NUMBER)
     {
       if (!poffInfo->lineNumberTable) fatal(ePOFFCONFUSION);
-
-      /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
-
-      poffSwapLineNumberData(poffInfo);
-
-      /* Write the line number table entries in big-endian order */
 
       entriesWritten = fwrite(poffInfo->lineNumberTable, sizeof(ubyte),
 			      poffInfo->lineNumberSection.sh_size,
@@ -476,23 +428,13 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 		 strerror(errno));
 	  fatal(ePOFFWRITEERROR);
 	}
-
-      /* Restore host order */
-
-      poffSwapLineNumberData(poffInfo);
     }
 
-  /* Write the debug section data (if we have one) */
+  /* Write the line number section data (if we have one) */
 
   if (HAVE_DEBUG_SECTION)
     {
       if (!poffInfo->debugFuncTable) fatal(ePOFFCONFUSION);
-
-      /* The POFF file is retained in big-endian order.  Fixup fields as necessary */
-
-      poffSwapDebugData(poffInfo);
-
-      /* Write the debug entries in big-endian order */
 
       entriesWritten = fwrite(poffInfo->debugFuncTable, sizeof(ubyte),
 			      poffInfo->debugFuncSection.sh_size,
@@ -503,10 +445,6 @@ static void poffWriteSectionData(poffHandle_t handle, FILE *poffFile)
 		 strerror(errno));
 	  fatal(ePOFFWRITEERROR);
 	}
-
-      /* Restore host order */
-
-      poffSwapDebugData(poffInfo);
     }
 
   /* Write the string table section data LAST (because we may have

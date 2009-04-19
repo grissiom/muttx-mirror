@@ -34,6 +34,10 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * Compilation Switches
+ ****************************************************************************/
+
+/****************************************************************************
  * Included Files
  ****************************************************************************/
 
@@ -71,13 +75,28 @@
  ****************************************************************************/
 
 /****************************************************************************
+ * Name: tftp_incrndx
+ ****************************************************************************/
+
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+static inline int tftp_incrndx(int ndx)
+{
+  if (++ndx >= TFTP_MAXACKPACKETS)
+    {
+      ndx = 0;
+    }
+  return ndx;
+}
+#endif
+
+/****************************************************************************
  * Name: tftp_read
  ****************************************************************************/
 
 static inline ssize_t tftp_read(int fd, ubyte *buf, size_t buflen)
 {
   ssize_t nbytesread;
-  ssize_t totalread = 0;
+  ssize_t totalread;
 
   while (totalread < buflen)
     {
@@ -95,7 +114,7 @@ static inline ssize_t tftp_read(int fd, ubyte *buf, size_t buflen)
 
       if (nbytesread < 0)
         {
-          ndbg("read failed: %d\n", errno);
+          ndbg(g_tftpcallfailed, "read", errno);
           return ERROR;
         }
 
@@ -156,7 +175,7 @@ int tftp_mkdatapacket(int fd, off_t offset, ubyte *packet, uint16 blockno)
   tmp = lseek(fd, offset, SEEK_SET);
   if (tmp == (off_t)-1)
     {
-      ndbg("lseek failed: %d\n", errno);
+      ndbg(g_tftpcallfailed, "lseek", errno);
       return ERROR;
     }
 
@@ -184,7 +203,7 @@ int tftp_mkdatapacket(int fd, off_t offset, ubyte *packet, uint16 blockno)
  *   packet   - buffer to use for the tranfers
  *   server  - The address of the server
  *   port    - The port number of the server (0 if not yet known)
- *   blockno - Location to return block number in the received ACK
+ *   blockno - The block number of the ACK
  *
  * Returned Value:
  *   OK:success and blockno valid, ERROR:failure.
@@ -212,20 +231,7 @@ static int tftp_rcvack(int sd, ubyte *packet, struct sockaddr_in *server,
           /* Receive the next UDP packet from the server */
 
           nbytes = tftp_recvfrom(sd, packet, TFTP_IOBUFSIZE, &from);
-          if (nbytes < TFTP_ACKHEADERSIZE)
-            {
-              /* Failed to receive a good packet */
-
-              if (nbytes >= 0)
-                {
-                  ndbg("tftp_recvfrom short packet: %d bytes\n", nbytes);
-                }
-
-              /* Break out to bump up the retry count */
-
-              break;
-            }
-          else
+          if (nbytes >= TFTP_ACKHEADERSIZE)
             {
                /* Get the port being used by the server if that has not yet been established */
 
@@ -239,13 +245,13 @@ static int tftp_rcvack(int sd, ubyte *packet, struct sockaddr_in *server,
 
                if (server->sin_addr.s_addr != from.sin_addr.s_addr)
                  {
-                   nvdbg("Invalid address in DATA\n");
+                   nvdbg(g_tftpaddress, "recvfrom");
                    continue;
                  }
 
               if (*port != server->sin_port)
                 {
-                  nvdbg("Invalid port in DATA\n");
+                  nvdbg(g_tftpport, "recvfrom");
                   packetlen = tftp_mkerrpacket(packet, TFTP_ERR_UNKID, TFTP_ERRST_UNKID);
                   (void)tftp_sendto(sd, packet, packetlen, server);
                   continue;
@@ -253,8 +259,8 @@ static int tftp_rcvack(int sd, ubyte *packet, struct sockaddr_in *server,
 
               /* Parse the error message */
 
-               opcode   = (uint16)packet[0] << 8 | (uint16)packet[1];
-               rblockno = (uint16)packet[2] << 8 | (uint16)packet[3];
+              opcode   = (uint16)packet[0] << 8 | (uint16)packet[1];
+              rblockno = (uint16)packet[2] << 8 | (uint16)packet[3];
 
               /* Verify that the message that we received is an ACK for the
                * expected block number.
@@ -262,8 +268,8 @@ static int tftp_rcvack(int sd, ubyte *packet, struct sockaddr_in *server,
 
                if (opcode != TFTP_ACK)
                  {
-                   nvdbg("Bad opcode\n");
-#if defined(CONFIG_DEBUG) && defined(CONFIG_DEBUG_NET)
+                   nvdbg("Bad opcode%d\n");
+#if CONFIG_DEBUG
                   if (opcode == TFTP_ERR)
                     {
                       (void)tftp_parseerrpacket(packet);
@@ -292,7 +298,7 @@ static int tftp_rcvack(int sd, ubyte *packet, struct sockaddr_in *server,
 
   /* We have tried TFTP_RETRIES times */
 
-  ndbg("Timeout, Waiting for ACK\n");
+  ndbg("Timeout, No ACK for block %d\n", blockno);
   return ERROR; /* Will never get here */
 }
 
@@ -315,24 +321,34 @@ static int tftp_rcvack(int sd, ubyte *packet, struct sockaddr_in *server,
 int tftpput(const char *local, const char *remote, in_addr_t addr, boolean binary)
 {
   struct sockaddr_in server;         /* The address of the TFTP server */
+  boolean eof = FALSE;               /* TRUE: at end of file */
   ubyte *packet;                     /* Allocated memory to hold one packet */
-  off_t offset;                      /* Offset into source file */
-  uint16 blockno;                    /* The current transfer block number */
+  uint16 blockno = 0;                /* The current transfer block number */
   uint16 rblockno;                   /* The ACK'ed block number */
   uint16 port = 0;                   /* This is the port number for the transfer */
   int packetlen;                     /* The length of the data packet */
   int sd;                            /* Socket descriptor for socket I/O */
   int fd;                            /* File descriptor for file I/O */
-  int retry;                         /* Retry counter */
   int result = ERROR;                /* Assume failure */
+  int tmp;                           /* For temporary usage */
   int ret;                           /* Generic return status */
+
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+  off_t offsets[TFTP_MAXACKPACKETS]; /* Offsets into source file (circular) */
+  int head;                          /* Head index into offsets[] */
+  int tail;                          /* Tail index into offsets[] */
+  int hblockno;                      /* Block number at the head of offsets[] */
+#else
+  off_t offset;                      /* Offset into source file */
+  off_t next;                        /* Offset to the next block */
+#endif
 
   /* Allocate the buffer to used for socket/disk I/O */
 
   packet = (ubyte*)zalloc(TFTP_IOBUFSIZE);
   if (!packet)
     {
-      ndbg("packet memory allocation failure\n");
+      ndbg(g_tftpnomemory, "packet");
       errno = ENOMEM;
       goto errout;
     }
@@ -342,7 +358,7 @@ int tftpput(const char *local, const char *remote, in_addr_t addr, boolean binar
   fd = open(local, O_RDONLY);
   if (fd < 0)
     {
-      ndbg("open failed: %d\n", errno);
+      ndbg(g_tftpcallfailed, "open", errno);
       goto errout_with_packet;
     }
 
@@ -354,109 +370,184 @@ int tftpput(const char *local, const char *remote, in_addr_t addr, boolean binar
       goto errout_with_fd;
     }
 
-  /* Send the write request using the well known port.  This may need
-   * to be done several times because (1) UDP is inherenly unreliable
-   * and packets may be lost normally, and (2) uIP has a nasty habit
-   * of droppying packets if there is nothing hit in the ARP table.
-   */
+  /* Send the write request */
 
-  blockno = 1;
-  retry   = 0;
-  for (;;)
+  packetlen = tftp_mkreqpacket(packet, TFTP_WRQ, remote, binary);
+  ret = tftp_sendto(sd, packet, packetlen, &server);
+  if (ret != packetlen)
     {
-      packetlen = tftp_mkreqpacket(packet, TFTP_WRQ, remote, binary);
-      ret = tftp_sendto(sd, packet, packetlen, &server);
-      if (ret != packetlen)
-        {
-          goto errout_with_sd;
-        }
-
-      /* Receive the ACK for the write request */
-
-      if (tftp_rcvack(sd, packet, &server, &port, NULL) == 0)
-        {
-          break;
-        }
-
-      ndbg("Re-sending request\n");
-
-      /* We are going to loop and re-send the request packet. Check the
-       * retry count so that we do not loop forever.
-        */
-
-      if (++retry > TFTP_RETRIES)
-        {
-          ndbg("Retry count exceeded\n");
-          errno = ETIMEDOUT;
-          goto errout_with_sd;
-        }
+      goto errout_with_sd;
     }
+
+  /* Receive the ACK for the write request */
+
+  (void)tftp_rcvack(sd, packet, &server, &port, NULL);
 
   /* Then loop sending the entire file to the server in chunks */
 
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+  head       = 0;
+  tail       = 0;
+  offsets[0] = 0;
+  hblockno   = 1;
+#else
   offset     = 0;
-  retry      = 0;
+  next       = 0;
+#endif
 
   for (;;)
     {
-      /* Construct the next data packet */
-
-      packetlen = tftp_mkdatapacket(fd, offset, packet, blockno);
-      if (packetlen < 0)
+      if (!eof)
         {
-          goto errout_with_sd;
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+          /* Construct the next data packet */
+
+          packetlen = tftp_mkdatapacket(fd, offset[tail], packet, blockno);
+          if (packetlen < 0)
+            {
+              goto errout_with_sd;
+            }
+
+          /* Check for end of file */
+
+          if (packetlen < TFTP_PACKETSIZE)
+            {
+              eof = TRUE;
+            }
+
+          /* Update counts */
+
+          blockno++;
+
+          /* Increment the tail (and probably the tail) index of the
+           * cicular offset list.
+           */
+
+          tmp  = tail;
+          tail = tftp_incrndx(tail);
+
+          /* Make sure that incrementing the tail doesn't make the
+           * buffer appear empty.
+           */
+
+          if (head == tail)
+            {
+              head = tftp_incrndx(head);
+              hblockno++;
+            }
+
+          /* Now calculate the next file offset */
+
+          offsets[tail] = offsets[tmp] + packetlen;
+#else
+          /* Construct the next data packet */
+
+          packetlen = tftp_mkdatapacket(fd, offset, packet, blockno);
+          if (packetlen < 0)
+            {
+              goto errout_with_sd;
+            }
+
+          /* Check for end of file */
+
+          if (packetlen < TFTP_PACKETSIZE)
+            {
+              eof = TRUE;
+            }
+
+          /* Now calculate the next file offset */
+
+          next = offset + packetlen;
+#endif
+
+         /* Send the next data block */
+
+          ret = tftp_sendto(sd, packet, packetlen, &server);
+          if (ret != packetlen)
+            {
+              goto errout_with_sd;
+            }
         }
 
-      /* Send the next data chunk */
+      /* Check for an ACK for any of the preceding data chunks */
 
-      ret = tftp_sendto(sd, packet, packetlen, &server);
-      if (ret != packetlen)
+#if CONFIG_NETUTILS_TFTP_ACKPACKETS > 1
+      if (blockno - hblockno >= CONFIG_NETUTILS_TFTP_ACKPACKETS || eof)
         {
-          goto errout_with_sd;
-        }
+          uint16 rblockno;
+          int ndx;
 
-      /* Check for an ACK for the data chunk */
+          /* Get the next ACK from the wire */
+
+          if (tftp_rcvack(sd, packet, &server, &port, &rblockno) == OK)
+            {
+              while (hblockno < rblockno && tail != head)
+                {
+                  head = tftp_incrndx(head);
+                  hblockno++;
+                }
+            }
+
+           /* If we are at the end of the file and if all of the packets
+            * have been ACKed, then we are done.
+            */
+
+          if (eof && head == tail)
+            {
+              break;
+            }
+
+          /* Otherwise, resend all un-acknowledged packets */
+
+          for (ndx = head, rblockno = hblockno;
+               ndx != tail;
+               ndx = tftp_incrndx(ndx), hblockno++)
+            {
+              /* Format the data packet, re-reading the data from the file */
+
+              packetlen = tftp_mkdatapacket(fd, offsets[ndx], packet, rblockno);
+              if (packetlen < 0)
+                {
+                  goto errout_with_sd;
+                }
+
+              /* Re-send the data packet */
+
+              ret = tftp_sendto(sd, packet, packetlen, &server);
+              if (ret != packetlen)
+                {
+                  goto errout_with_sd;
+                }
+            }
+        }
+#else
+      /* Get the next ACK from the wire */
 
       if (tftp_rcvack(sd, packet, &server, &port, &rblockno) == OK)
         {
+           /* If we are at the end of the file and if all of the packets
+            * have been ACKed, then we are done.
+            */
+
+          if (eof)
+            {
+              break;
+            }
+
           /* Check if the packet that we just sent was ACK'ed.  If not,
            * we just loop to resend the same packet (same blockno, same
-           * file offset).
+           * file offset.
            */
 
           if (rblockno == blockno)
             {
-               /* Yes.. If we are at the end of the file and if all of the packets
-                * have been ACKed, then we are done.
-                */
-
-              if (packetlen < TFTP_PACKETSIZE)
-                {
-                  break;
-                }
-
-               /* Not the last block.. set up for the next block */
+               /* Yes.. set up for the next block */
 
                blockno++;
-               offset += TFTP_DATASIZE;
-               retry  = 0;
-
-               /* Skip the retry test */
-
-               continue;
+               offset = next;
             }
         }
-
-      /* We are going to loop and re-send the data packet. Check the retry
-       * count so that we do not loop forever.
-       */
-
-      if (++retry > TFTP_RETRIES)
-        {
-          ndbg("Retry count exceeded\n");
-          errno = ETIMEDOUT;
-          goto errout_with_sd;
-        }
+#endif
     }
 
   /* Return success */

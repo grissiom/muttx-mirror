@@ -41,9 +41,8 @@
 
 #include <sys/types.h>
 #include <debug.h>
-#include <fixedmath.h>
 
-#include <nuttx/nxglib.h>
+#include <fixedmath.h>
 
 /****************************************************************************
  * Pre-Processor Definitions
@@ -80,14 +79,15 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Name: nxgl_rgb2yuv
+ * Name: nxglib_rgb2yuv
  *
  * Description:
  *   Convert 8-bit RGB triplet to 8-bit YUV triplet
  *
+ *
  ****************************************************************************/
 
-void nxgl_rgb2yuv(ubyte r, ubyte g, ubyte b, ubyte *y, ubyte *u, ubyte *v)
+void nxglib_rgb2yuv(ubyte r, ubyte g, ubyte b, ubyte *y, ubyte *u, ubyte *v)
 {
   /* Per the JFIF specification:
    *

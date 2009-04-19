@@ -37,12 +37,8 @@ USBDEV_ASRCS  =
 USBDEV_CSRCS  =
 
 ifeq ($(CONFIG_USBDEV),y)
-ifeq ($(CONFIG_USBSER),y)
-USBDEV_CSRCS  += usbdev_serial.c
-endif
-ifeq ($(CONFIG_USBSTRG),y)
-USBDEV_CSRCS  += usbdev_storage.c usbdev_scsi.c
-endif
+ifeq ($(CONFIG_USBDEV_TRACE),y)
 USBDEV_CSRCS  += usbdev_trace.c
+endif
 endif
 

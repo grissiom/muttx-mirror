@@ -48,7 +48,6 @@
 
 #include "keywords.h"
 #include "poff.h"
-#include "paslib.h"    /* Endian-ness support */
 
 /***************************************************************************
  * Definitions
@@ -86,16 +85,6 @@
 #define HAVE_FILE_TABLE      (poffInfo->fileNameTableSection.sh_size > 0)
 #define HAVE_LINE_NUMBER     (poffInfo->lineNumberSection.sh_size > 0)
 #define HAVE_DEBUG_SECTION   (poffInfo->debugFuncSection.sh_size > 0)
-
-#ifndef CONFIG_POFF_SWAPNEEDED
-# define poffSwapFileHeader(p)
-# define poffSwapSectionHeader(p)
-# define poffSwapSymbolTableData(p)
-# define poffSwapRelocationData(p)
-# define poffSwapFileTableData(p)
-# define poffSwapLineNumberData(p)
-# define poffSwapDebugData(p)
-#endif
 
 /***************************************************************************
  * Public Types
@@ -179,15 +168,5 @@ typedef struct poffSymInfo_s poffSymInfo_t;
 /***************************************************************************
  * Public Function Prototypes
  ***************************************************************************/
-
-#ifdef CONFIG_POFF_SWAPNEEDED
-extern void poffSwapFileHeader(poffFileHeader_t *pFileHeader);
-extern void poffSwapSectionHeader(poffSectionHeader_t *pSectionHeader);
-extern void poffSwapSymbolTableData(poffInfo_t *poffInfo);
-extern void poffSwapRelocationData(poffInfo_t *poffInfo);
-extern void poffSwapFileTableData(poffInfo_t *poffInfo);
-extern void poffSwapLineNumberData(poffInfo_t *poffInfo);
-extern void poffSwapDebugData(poffInfo_t *poffInfo);
-#endif
 
 #endif /* __PFPRIVATE_H */

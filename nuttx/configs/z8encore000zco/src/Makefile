@@ -1,5 +1,5 @@
 ############################################################################
-# configs/z8encore000zco/Makefile
+# configs/z16f2800100zcog/Makefile
 #
 #   Copyright (C) 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -43,7 +43,7 @@ CFLAGS		= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(INCLUDES) $(ARCH
 
 ASRCS		= 
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
-CSRCS		= z8_lowinit.c z8_leds.c
+CSRCS		= z16f_lowinit.c z16f_leds.c
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
 SRCS		= $(ASRCS) $(CSRCS)
@@ -53,7 +53,7 @@ OBJS		= $(AOBJS) $(COBJS)
 all: libboard$(LIBEXT)
 
 $(ASRCS) $(HEAD_ASRC): %$(ASMEXT): %.S
-	@$(CPP) $(CPPFLAGS) `cygpath -w $<` -o $@.tmp
+	@$(CPP) $(CPPFLAGS) $< -o $@.tmp
 	@cat $@.tmp | sed -e "s/^#/;/g" > $@
 	@rm $@.tmp
 
@@ -61,7 +61,7 @@ $(AOBJS): %$(OBJEXT): %$(ASMEXT)
 	$(call ASSEMBLE, $<, $@)
 
 $(COBJS) $(LINKOBJS): %$(OBJEXT): %.c
-	$(call COMPILE, $<, $@)
+	$(call COMPILE, `cygpath -w $<`, $@)
 
 libboard$(LIBEXT): $(OBJS)
 	@( for obj in $(OBJS) ; do \

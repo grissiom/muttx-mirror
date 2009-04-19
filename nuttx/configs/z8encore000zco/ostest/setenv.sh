@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # configs/z8encore000zco/ostest/setenv.sh
 #
 #   Copyright (C) 2008 Gregory Nutt. All rights reserved.
@@ -49,4 +49,3 @@ alias ez8asm="${ZDSBINDIR}/ez8asm.exe"
 alias ez8cc="${ZDSBINDIR}/ez8cc.exe"
 alias ez8lib="${ZDSBINDIR}/ez8lib.exe"
 alias ez8link="${ZDSBINDIR}/ez8link.exe"
-

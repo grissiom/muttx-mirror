@@ -94,15 +94,12 @@ static uint32 g_nxcid    = 1;
  *   connection is normally needed per thread as each connection can host
  *   multiple windows.
  *
- *   NOTES:
- *   - This function returns before the connection is fully instantiated.
- *     it is necessary to wait for the connection event before using the
- *     returned handle.
- *   - Multiple instances of the NX server may run at the same time,
- *     each with different message queue names.
+ *   NOTE that multiple instances of the NX server may run at the same time,
+ *   each with different message queue names.
  *
  * Input Parameters:
  *   svrmqname - The name for the server incoming message queue
+ *   cb     - Callbacks used to process received NX server messages
  *
  * Return:
  *   Success: A non-NULL handle used with subsequent NX accesses
@@ -110,7 +107,8 @@ static uint32 g_nxcid    = 1;
  *
  ****************************************************************************/
 
-NXHANDLE nx_connectinstance(FAR const char *svrmqname)
+NXHANDLE nx_connectionstance(FAR const char *svrmqname,
+                             FAR const struct nx_callback_s *cb)
 {
   FAR struct nxfe_conn_s *conn;
   struct nxsvrmsg_s       msg;
@@ -121,7 +119,7 @@ NXHANDLE nx_connectinstance(FAR const char *svrmqname)
   /* Sanity checking */
 
 #ifdef CONFIG_DEBUG
-  if (!svrmqname)
+  if (!svrmqname || !cb)
     {
       errno = EINVAL;
       return NULL;
@@ -136,6 +134,10 @@ NXHANDLE nx_connectinstance(FAR const char *svrmqname)
       errno = ENOMEM;
       goto errout;
     }
+
+  /* Save the callback vtable */
+
+  conn->cb = cb;
 
   /* Create the client MQ name */
 
@@ -156,7 +158,7 @@ NXHANDLE nx_connectinstance(FAR const char *svrmqname)
 #else
   conn->crdmq = mq_open(climqname, O_RDONLY|O_CREAT|O_NONBLOCK, 0666, &attr);
 #endif
-  if (conn->crdmq == (mqd_t)-1)
+  if (conn->crdmq)
     {
       gdbg("mq_open(%s) failed: %d\n", climqname, errno);
       goto errout_with_conn;
@@ -169,7 +171,7 @@ NXHANDLE nx_connectinstance(FAR const char *svrmqname)
   attr.mq_flags   = 0;
 
   conn->cwrmq = mq_open(svrmqname, O_WRONLY|O_CREAT, 0666, &attr);
-  if (conn->cwrmq == (mqd_t)-1)
+  if (conn->cwrmq)
     {
       gdbg("mq_open(%s) failed: %d\n", svrmqname, errno);
       goto errout_with_rmq;
@@ -187,7 +189,6 @@ NXHANDLE nx_connectinstance(FAR const char *svrmqname)
       goto errout_with_wmq;
     }
 
-#if 0
   /* Now read until we get a response to this message.  The server will
    * respond with either (1) NX_CLIMSG_CONNECTED, in which case the state
    * will change to NX_CLISTATE_CONNECTED, or (2) NX_CLIMSG_DISCONNECTED
@@ -202,10 +203,9 @@ NXHANDLE nx_connectinstance(FAR const char *svrmqname)
           gdbg("nx_message failed: %d\n", errno);
           goto errout_with_wmq;
         }
-      usleep(300000);
     }
   while (conn->state != NX_CLISTATE_CONNECTED);
-#endif
+
   return (NXHANDLE)conn;
 
 errout_with_wmq:

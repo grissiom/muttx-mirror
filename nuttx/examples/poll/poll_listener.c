@@ -57,17 +57,6 @@
  * Definitions
  ****************************************************************************/
 
-#if defined(CONFIG_DEV_CONSOLE) && !defined(CONFIG_DEV_LOWCONSOLE)
-#   define HAVE_CONSOLE
-#   define NPOLLFDS 2
-#   define CONSNDX  0
-#   define FIFONDX  1
-#else
-#   undef  HAVE_CONSOLE
-#   define NPOLLFDS 1
-#   define FIFONDX  0
-#endif
-
 /****************************************************************************
  * Private Types
  ****************************************************************************/
@@ -90,24 +79,22 @@
 
 void *poll_listener(pthread_addr_t pvarg)
 {
-  struct pollfd fds[NPOLLFDS];
+  struct pollfd fds;
   char buffer[64];
   ssize_t nbytes;
   boolean timeout;
   boolean pollin;
-  int nevents;
   int fd;
   int ret;
-  int i;
 
   /* Open the FIFO for non-blocking read */
 
-  message("poll_listener: Opening %s for non-blocking read\n", FIFO_PATH1);
-  fd = open(FIFO_PATH1, O_RDONLY|O_NONBLOCK);
+  message("poll_listener: Opening %s for non-blocking read\n", FIFO_PATH);
+  fd = open(FIFO_PATH, O_RDONLY|O_NONBLOCK);
   if (fd < 0)
     {
       message("poll_listener: ERROR Failed to open FIFO %s: %d\n",
-              FIFO_PATH1, errno);
+              FIFO_PATH, errno);
       (void)close(fd);
       return (void*)-1;
     }
@@ -118,138 +105,90 @@ void *poll_listener(pthread_addr_t pvarg)
     {
       message("poll_listener: Calling poll()\n");
 
-      memset(fds, 0, sizeof(struct pollfd)*NPOLLFDS);
-#ifdef HAVE_CONSOLE
-      fds[CONSNDX].fd      = 0;
-      fds[CONSNDX].events  = POLLIN;
-      fds[CONSNDX].revents = 0;
-#endif
-      fds[FIFONDX].fd      = fd;
-      fds[FIFONDX].events  = POLLIN;
-      fds[FIFONDX].revents = 0;
+      memset(&fds, 0, sizeof(struct pollfd));
+      fds.fd      = fd;
+      fds.events  = POLLIN;
+      fds.revents = 0;
 
-      timeout              = FALSE;
-      pollin               = FALSE;
+      timeout     = FALSE;
+      pollin      = FALSE;
 
-      ret = poll(fds, NPOLLFDS, POLL_LISTENER_DELAY);
-
-      message("\npoll_listener: poll returned: %d\n", ret);
+      ret = poll(&fds, 1, LISTENER_DELAY);
       if (ret < 0)
         {
-          message("poll_listener: ERROR poll failed: %d\n", errno);
+          message("poll_listener: ERROR poll failed: %d\n");
         }
       else if (ret == 0)
         {
-          message("poll_listener: Timeout\n");
+          message("poll_listener: Timeout, revents=%02x\n", fds.revents);
           timeout = TRUE;
-        }
-      else if (ret > NPOLLFDS)
-        {
-          message("poll_listener: ERROR poll reported: %d\n");
+          if (fds.revents != 0)
+            {
+              message("poll_listener: ERROR? expected revents=00, received revents=%02x\n",
+                      fds.revents);
+            }
         }
       else
         {
-          pollin = TRUE;
-        }
-
-      nevents = 0;
-      for (i = 0; i < NPOLLFDS; i++)
-        {
-          message("poll_listener: FIFO revents[%d]=%02x\n", i, fds[i].revents);
-          if (timeout)
+          if (ret != 1)
             {
-              if (fds[i].revents != 0)
-                {
-                  message("poll_listener: ERROR? expected revents=00, received revents[%d]=%02x\n",
-                          fds[i].revents, i);
-                }
+              message("poll_listener: ERROR poll reported: %d\n");
             }
-          else if (pollin)
+          else
             {
-               if (fds[i].revents == POLLIN)
-                 {
-                   nevents++;
-                 }
-               else if (fds[i].revents != 0)
-                {
-                   message("poll_listener: ERROR unexpected revents[i]=%02x\n",
-                           i, fds[i].revents);
-                 }
+              pollin = TRUE;
+            }
+
+          message("poll_listener: revents=%02x\n", fds.revents);
+          if (fds.revents != POLLIN)
+            {
+              message("poll_listener: ERROR expected revents=%02x, received revents=%02x\n",
+                      fds.revents);
+              message("               (might just be a race condition)\n");
             }
         }
 
-      if (pollin && nevents != ret)
-        {
-           message("poll_listener: ERROR found %d events, poll reported %d\n", nevents, ret);
-        }
+      /* In any event, read until the pipe is empty */
 
-      /* In any event, read until the pipe/serial  is empty */
-
-      for (i = 0; i < NPOLLFDS; i++)
+      do
         {
-          do
+          nbytes = read(fd, buffer, 63);
+          if (nbytes <= 0)
             {
-#ifdef HAVE_CONSOLE
-              /* Hack to work around the fact that the console driver on the
-               * simulator is always non-blocking.
-               */
-
-              if (i == CONSNDX)
-                {
-                  if ((fds[CONSNDX].revents & POLLIN) != 0)
-                    {
-                      buffer[0] = getchar();
-                      nbytes = 1;
-                    }
-                  else
-                    {
-                      nbytes = 0;
-                    }
-                }
-              else
-#endif
-                {
-                  /* The pipe works differently, it returns whatever data
-                   * it has available without blocking.
-                   */
-
-                  nbytes = read(fds[i].fd, buffer, 63);
-                }
-
-              if (nbytes <= 0)
-                {
-                  if (nbytes == 0 || errno == EAGAIN)
-                    {
-                      if ((fds[i].revents & POLLIN) != 0)
-                        {
-                          message("poll_listener: ERROR no read data[%d]\n", i);
-                        }
-                    }
-                  else if (errno != EINTR)
-                    {
-                      message("poll_listener: read[%d] failed: %d\n", i, errno);
-                    }
-                  nbytes = 0;
-                }
-              else
+              if (nbytes == 0 || errno == EAGAIN)
                 {
                   if (timeout)
                     {
-                      message("poll_listener: ERROR? Poll timeout, but data read[%d]\n", i);
-                      message("               (might just be a race condition)\n");
+                      message("poll_listener: No read data available\n");
                     }
-
-                  buffer[nbytes] = '\0';
-                  message("poll_listener: Read[%d] '%s' (%d bytes)\n", i, buffer, nbytes);
+                  else if (pollin)
+                    {
+                      message("poll_listener: ERROR no read data\n");
+                    }
+                }
+              else if (errno != EINTR)
+                {
+                  message("poll_listener: read failed: %d\n", errno);
+                }
+              nbytes = 0;
+            }
+          else
+            {
+              if (timeout)
+                {
+                  message("poll_listener: ERROR? Poll timeout, but data read\n");
+                  message("               (might just be a race condition)\n");
                 }
 
-              /* Suppress error report if no read data on the next time through */
-
-              fds[i].revents = 0;
+              buffer[nbytes] = '\0';
+              message("poll_listener: Read '%s' (%d bytes)\n", buffer, nbytes);
             }
-          while (nbytes > 0);
+
+          timeout = FALSE;
+          pollin  = FALSE;
         }
- 
+      while (nbytes > 0);
+
       /* Make sure that everything is displayed */
 
       msgflush();

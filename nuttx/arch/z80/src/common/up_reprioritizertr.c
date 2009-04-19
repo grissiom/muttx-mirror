@@ -1,7 +1,7 @@
 /****************************************************************************
- * arch/z80/src/common/up_reprioritizertr.c
+ * common/up_reprioritizertr.c
  *
- *   Copyright (C) 2007-2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,9 +44,8 @@
 #include <debug.h>
 
 #include <nuttx/arch.h>
+#include <chip/chip.h>
 
-#include "chip/chip.h"
-#include "chip/switch.h"
 #include "os_internal.h"
 #include "up_internal.h"
 
@@ -59,11 +58,11 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Private Functions
+ * Private Funtions
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Funtions
  ****************************************************************************/
 
 /****************************************************************************
@@ -102,7 +101,7 @@ void up_reprioritize_rtr(FAR _TCB *tcb, ubyte priority)
       FAR _TCB *rtcb = (FAR _TCB*)g_readytorun.head;
       boolean switch_needed;
 
-      slldbg("TCB=%p PRI=%d\n", tcb, priority);
+      lldbg("TCB=%p PRI=%d\n", tcb, priority);
 
       /* Remove the tcb task from the ready-to-run list.
        * sched_removereadytorun will return TRUE if we just
@@ -141,7 +140,7 @@ void up_reprioritize_rtr(FAR _TCB *tcb, ubyte priority)
 
           /* Are we in an interrupt handler? */
 
-          if (IN_INTERRUPT())
+          if (IN_INTERRUPT)
             {
               /* Yes, then we have to do things differently.
                * Just copy the current context into the OLD rtcb.
@@ -154,7 +153,7 @@ void up_reprioritize_rtr(FAR _TCB *tcb, ubyte priority)
                */
 
               rtcb = (FAR _TCB*)g_readytorun.head;
-              slldbg("New Active Task TCB=%p\n", rtcb);
+              lldbg("New Active Task TCB=%p\n", rtcb);
 
               /* Then setup so that the context will be performed on exit
                * from the interrupt.
@@ -175,7 +174,7 @@ void up_reprioritize_rtr(FAR _TCB *tcb, ubyte priority)
                */
 
               rtcb = (FAR _TCB*)g_readytorun.head;
-              slldbg("New Active Task TCB=%p\n", rtcb);
+              lldbg("New Active Task TCB=%p\n", rtcb);
 
               /* Then switch contexts */
 

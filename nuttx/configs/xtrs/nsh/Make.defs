@@ -65,12 +65,7 @@ SDCCLIB			= z80.lib
 ASMEXT			= .asm
 OBJEXT			= .o
 LIBEXT			= .lib
-EXEEXT			= .cmd
-
-define PREPROCESS
-	@echo "CPP: $1->$2"
-	@$(CPP) $(CPPFLAGS) $1 -o $2
-endef
+EXEEXT			= .hex
 
 define COMPILE
 	@echo "CC: $1"

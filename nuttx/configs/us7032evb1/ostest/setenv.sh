@@ -40,8 +40,8 @@ fi
 if [ -z ${PATH_ORIG} ]; then export PATH_ORIG=${PATH}; fi
 
 WD=`pwd`
-export BUILDROOT_BIN=${WD}/../buildroot/build_sh/staging_dir/bin
-export SH1BINARIES=$WD/configs/us7032evb1/bin
+export BUILDROOT_BIN=${WD}/../buildroot/build_arm_nofpu/staging_dir/bin
+export SH1BINARIES=$WD/configs/us7032evb11/bin
 export PATH=${BUILDROOT_BIN}:${SH1BINARIES}:/sbin:/usr/sbin:${PATH_ORIG}
 
 echo "PATH : ${PATH}"

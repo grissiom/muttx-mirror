@@ -45,28 +45,6 @@
  * Definitions
  ************************************************************************************/
 
-/* Bits in the Z80 FLAGS register ***************************************************/
-
-#define Z80_C_FLAG      0x01       /* Bit 0: Carry flag */
-#define Z80_N_FLAG      0x02       /* Bit 1: Add/Subtract flag  */
-#define Z80_PV_FLAG     0x04       /* Bit 2: Parity/Overflow flag */
-#define Z80_H_FLAG      0x10       /* Bit 4: Half carry flag */
-#define Z80_Z_FLAG      0x40       /* Bit 5: Zero flag */
-#define Z80_S_FLAG      0x80       /* Bit 7: Sign flag */
-
-/* Register access macros ***********************************************************/
-
-#ifndef __ASSEMBLY__
-
-# define getreg8(a)           (*(volatile ubyte *)(a))
-# define putreg8(v,a)         (*(volatile ubyte *)(a) = (v))
-# define getreg16(a)          (*(volatile uint16 *)(a))
-# define putreg16(v,a)        (*(volatile uint16 *)(a) = (v))
-# define getreg32(a)          (*(volatile uint32 *)(a))
-# define putreg32(v,a)        (*(volatile uint32 *)(a) = (v))
-
-#endif
-
 /************************************************************************************
  * Public Function Prototypes
  ************************************************************************************/

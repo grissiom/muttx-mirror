@@ -4,35 +4,8 @@ README.txt
 ZDS-II Compiler Versions
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Different configurations have been build for this board using ZDS-11
-Versions 4.11.0 and 4.11.1.  You have to check the files */Make.defs
-to see how the build is configured:  Check the definitions of
-ZDSVERSION (if present) and ZDSINSTALLDIR.
-
-NOTE:  Different versions of the ZDS-II compiler may also require
-different versions of .linkcmd and .zdsproj files as well.
-
-Version 4.11.0
-
-  Although it compiles without error, the 4.11.0 compiler generates
+4.11.0
   This is the only version that this code has been built against.
-  
-  Although it compiles without error, the 4.11.0 compiler generates
-  bad code on one of the files, mm/mm_initialize.c.  Below is a simple work-
-  around.
-
-    --- mm/mm_initialize.c.SAVE	2008-02-13 08:06:46.833857700 -0600
-    +++ mm/mm_initialize.c	2008-02-13 08:07:26.367608900 -0600
-    @@ -94,8 +94,11 @@
-    {
-       int i;
- 
-    +#if 0 /* DO NOT CHECK IN */
-       CHECK_ALLOCNODE_SIZE;
-       CHECK_FREENODE_SIZE;
-    +#endif
- 
-   /* Set up global variables */
 
 Other Versions
   If you use any version of ZDS-II other than 4.11.0 or if you install ZDS-II

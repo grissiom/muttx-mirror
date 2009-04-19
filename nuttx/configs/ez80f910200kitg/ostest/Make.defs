@@ -1,7 +1,7 @@
 ############################################################################
 # configs/ez80f910200kitg/ostest/Make.defs
 #
-#   Copyright (C) 2008, 2009 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -37,8 +37,7 @@ include ${TOPDIR}/.config
 
 # These are the directories where the ZDS-II toolchain is installed
 
-ZDSVERSION		:= 4.11.1
-ZDSINSTALLDIR		:= C:/Program\ Files/ZiLOG/ZDSII_eZ80Acclaim!_$(ZDSVERSION)
+ZDSINSTALLDIR		:= C:/Program\ Files/ZiLOG/ZDSII_eZ8Acclaim!_4.11.0
 ZDSBINDIR		:= $(ZDSINSTALLDIR)/bin
 ZDSSTDINCDIR		:= $(ZDSINSTALLDIR)/include/std
 ZDSZILOGINCDIR		:= $(ZDSINSTALLDIR)/include/zilog
@@ -118,11 +117,11 @@ LINKCMDTEMPLATE 	= $(TOPDIR)/configs/ez80f910200kitg/ostest/ostest.linkcmd
 # Tool names/pathes
 
 CROSSDEV		=
-CC			= $(ZDSBINDIR)/ez80cc.exe
+CC			= $(ZDSBINDIR)/eZ80cc.exe
 CPP			= gcc -E
-LD			= $(ZDSBINDIR)/ez80link.exe
-AS			= $(ZDSBINDIR)/ez80asm.exe
-AR			= $(ZDSBINDIR)/ez80lib.exe
+LD			= $(ZDSBINDIR)/eZ80link.exe
+AS			= $(ZDSBINDIR)/eZ80asm.exe
+AR			= $(ZDSBINDIR)/eZ80lib.exe
 
 # File extensions
 
@@ -136,19 +135,14 @@ HEXEXT			= .hex
 # to compile and assembly source files and to insert the resulting
 # object files into an archive
 
-define PREPROCESS
-	@echo "CPP: $1->$2"
-	@$(CPP) $(CPPFLAGS) $1 -o $2
-endef
-
 define COMPILE
 	@#echo "CC: $1"
-	@(wfile=`cygpath -w $1`; $(CC) $(CFLAGS) $$wfile)
+	@$(CC) $(CFLAGS) $1
 endef
 
 define ASSEMBLE
 	@#echo "AS: $1"
-	@(wfile=`cygpath -w $1`; $(AS) $(AFLAGS) $$wfile)
+	@$(AS) -c $(AFLAGS) $1
 endef
 
 define ARCHIVE

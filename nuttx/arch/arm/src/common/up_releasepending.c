@@ -1,7 +1,7 @@
-/****************************************************************************
- *  arch/arm/src/common/up_releasepending.c
+/************************************************************
+ * common/up_releasepending.c
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,11 +31,11 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Included Files
- ****************************************************************************/
+ ************************************************************/
 
 #include <nuttx/config.h>
 #include <sys/types.h>
@@ -45,23 +45,23 @@
 #include "os_internal.h"
 #include "up_internal.h"
 
-/****************************************************************************
+/************************************************************
  * Private Definitions
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Private Data
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+/************************************************************
+ * Private Funtions
+ ************************************************************/
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+/************************************************************
+ * Public Funtions
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Name: up_release_pending
  *
  * Description:
@@ -70,13 +70,13 @@
  *   context switch if a new task is placed at the head of
  *   the ready to run list.
  *
- ****************************************************************************/
+ ************************************************************/
 
 void up_release_pending(void)
 {
   _TCB *rtcb = (_TCB*)g_readytorun.head;
 
-  slldbg("From TCB=%p\n", rtcb);
+  lldbg("From TCB=%p\n", rtcb);
 
   /* Merge the g_pendingtasks list into the g_readytorun task list */
 
@@ -101,7 +101,7 @@ void up_release_pending(void)
            */
 
           rtcb = (_TCB*)g_readytorun.head;
-          slldbg("New Active Task TCB=%p\n", rtcb);
+          lldbg("New Active Task TCB=%p\n", rtcb);
 
           /* Then switch contexts */
 
@@ -121,7 +121,7 @@ void up_release_pending(void)
            */
 
           rtcb = (_TCB*)g_readytorun.head;
-          slldbg("New Active Task TCB=%p\n", rtcb);
+          lldbg("New Active Task TCB=%p\n", rtcb);
 
            /* Then switch contexts */
 

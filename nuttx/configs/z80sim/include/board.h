@@ -45,22 +45,7 @@
  ************************************************************/
 
 /************************************************************
- * Public Functions
+ * Inline Functions
  ************************************************************/
-#undef EXTERN
-#if defined(__cplusplus)
-#define EXTERN extern "C"
-extern "C" {
-#else
-#define EXTERN extern
-#endif
-
-EXTERN void z80_lowputc(char ch) __naked;
-EXTERN char z80_lowgetc(void) __naked;
-
-#undef EXTERN
-#if defined(__cplusplus)
-}
-#endif
 
 #endif  /* __ARCH_BOARD_BOARD_H */

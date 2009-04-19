@@ -81,7 +81,7 @@
 #define STR71X_IRQ_T0OC1     (30)
 #define STR71X_IRQ_T0OC2     (31)
 
-#define STR71X_IRQ_SYSTIMER  STR71X_IRQ_T0TIMI
+#define LPC214X_IRQ_SYSTIMER  STR71X_IRQ_T0TIMI
 #define NR_IRQS               32
 
 /* FIQ channels */
@@ -116,5 +116,5 @@ extern "C" {
 #endif
 #endif
 
-#endif /* __ARCH_ARM_INCLUDE_STR71X_IRQ_H */
+#endif /* __ARCH_LPC214X_IRQ_H */
 

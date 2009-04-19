@@ -41,6 +41,7 @@
 #include <sys/types.h>
 
 #include <nuttx/nxglib.h>
+#include <nuttx/nx.h>
 
 #include "nxbe.h"
 #include "nxfe.h"
@@ -58,7 +59,7 @@ struct nxbe_move_s
   struct nxbe_clipops_s     cops;
   struct nxgl_point_s       offset;
   FAR struct nxbe_window_s *wnd;
-  struct nxgl_rect_s        srcrect;
+  struct nxgl_rect_s        srcsize;
   ubyte                     order;
 };
 
@@ -121,8 +122,8 @@ static void nxbe_clipmoveobscured(FAR struct nxbe_clipops_s *cops,
  * Name: nxbe_clipmovedest
  *
  * Description:
- *  Called from nxbe_clipper() to performed the move operation on visible
- *  regions of the source rectangle.
+ *  Called from nxbe_clipper() to performed the move operation on visible regions
+ *  of the rectangle.
  *
  ****************************************************************************/
 
@@ -143,7 +144,7 @@ static void nxbe_clipmovedest(FAR struct nxbe_clipops_s *cops,
    * background window
    */
 
-  nxgl_rectoffset(&tmprect1, &dstdata->srcrect, offset.x, offset.y);
+  nxgl_rectoffset(&tmprect1, &dstdata->srcsize, offset.x, offset.y);
   nxgl_rectintersect(&tmprect2, &tmprect1, &wnd->be->bkgd.bounds);
   nxgl_nonintersecting(nonintersecting, rect, &tmprect2);
 
@@ -158,7 +159,7 @@ static void nxbe_clipmovedest(FAR struct nxbe_clipops_s *cops,
   /* Cip to determine what is inside the bounds */
 
   nxgl_rectoffset(&tmprect1, rect, -offset.x, -offset.y);
-  nxgl_rectintersect(&src, &tmprect1, &dstdata->srcrect);
+  nxgl_rectintersect(&src, &tmprect1, &dstdata->srcsize);
 
   if (!nxgl_nullrect(&src))
     {
@@ -199,6 +200,7 @@ void nxbe_move(FAR struct nxbe_window_s *wnd, FAR const struct nxgl_rect_s *rect
 {
   FAR const struct nxgl_rect_s *bounds = &wnd->bounds;
   struct nxbe_move_s info;
+  struct nxgl_rect_s remaining;
   int i;
 
 #ifdef CONFIG_DEBUG
@@ -208,16 +210,12 @@ void nxbe_move(FAR struct nxbe_window_s *wnd, FAR const struct nxgl_rect_s *rect
     }
 #endif
 
-  /* Offset the rectangle by the window origin to create a bounding box */
-
-  nxgl_rectoffset(&info.srcrect, rect, wnd->bounds.pt1.x, wnd->bounds.pt1.y);
-
   /* Clip to the limits of the window and of the background screen */
 
-  nxgl_rectintersect(&info.srcrect, &info.srcrect, &wnd->bounds);
-  nxgl_rectintersect(&info.srcrect, &info.srcrect, &wnd->be->bkgd.bounds);
+  nxgl_rectintersect(&remaining, rect, &wnd->bounds);
+  nxgl_rectintersect(&remaining, &remaining, &wnd->be->bkgd.bounds);
 
-  if (nxgl_nullrect(&info.srcrect))
+  if (nxgl_nullrect(&remaining))
     {
       return;
     }
@@ -251,7 +249,7 @@ void nxbe_move(FAR struct nxbe_window_s *wnd, FAR const struct nxgl_rect_s *rect
         }
     }
 
-  nxgl_rectintersect(&info.srcrect, bounds, &wnd->be->bkgd.bounds);
+  nxgl_rectintersect(&info.srcsize, bounds, &wnd->be->bkgd.bounds);
 
 #if CONFIG_NX_NPLANES > 1
   for (i = 0; i < wnd->be->vinfo.nplanes; i++)
@@ -259,7 +257,7 @@ void nxbe_move(FAR struct nxbe_window_s *wnd, FAR const struct nxgl_rect_s *rect
   i = 0;
 #endif
     {
-      nxbe_clipper(wnd->above, &info.srcrect, info.order,
+      nxbe_clipper(wnd->above, &remaining, info.order,
                    &info.cops, &wnd->be->plane[i]);
     }
 }

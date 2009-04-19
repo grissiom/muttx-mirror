@@ -43,7 +43,6 @@
 #include <errno.h>
 #include <debug.h>
 
-#include <nuttx/nxglib.h>
 #include <nuttx/nx.h>
 #include "nxfe.h"
 
@@ -86,18 +85,14 @@ void nxfe_reportposition(FAR struct nxbe_window_s *wnd)
 
   /* Send the size/position info */
 
-  outmsg.msgid  = NX_CLIMSG_NEWPOSITION;
-  outmsg.wnd    = wnd;
-  outmsg.pos.x  = wnd->bounds.pt1.x;
-  outmsg.pos.y  = wnd->bounds.pt1.y;
+  outmsg.msgid = NX_CLIMSG_NEWPOSITION;
+  outmsg.wnd   = wnd;
+  outmsg.pos.x = wnd->origin.x;
+  outmsg.pos.y = wnd->origin.y;
 
-  nxgl_rectsize(&outmsg.size, &wnd->bounds);
+  /* Convert the frame rectangle to a window-relative rectangle */
 
-  /* Provide the background window bounding box which is the screen limits
-   * It must always have (0,0) as its origin
-   */
-
-  nxgl_rectcopy(&outmsg.bounds, &wnd->be->bkgd.bounds);
+  nxgl_rectoffset(&outmsg.size, &wnd->bounds, -wnd->origin.x, -wnd->origin.y);
 
   /* And provide this to the client */
 

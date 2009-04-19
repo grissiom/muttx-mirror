@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/z80/src/common/up_blocktask.c
+ * common/up_blocktask.c
  *
  *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -45,7 +45,6 @@
 
 #include <nuttx/arch.h>
 
-#include "chip/switch.h"
 #include "os_internal.h"
 #include "up_internal.h"
 
@@ -58,11 +57,11 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Private Functions
+ * Private Funtions
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Funtions
  ****************************************************************************/
 
 /****************************************************************************
@@ -129,7 +128,7 @@ void up_block_task(FAR _TCB *tcb, tstate_t task_state)
         {
           /* Are we in an interrupt handler? */
 
-          if (IN_INTERRUPT())
+          if (IN_INTERRUPT)
             {
               /* Yes, then we have to do things differently.
                * Just copy the current registers into the OLD rtcb.

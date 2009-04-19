@@ -1,5 +1,5 @@
 /****************************************************************************
- * arch/z8encore000zco/include/board.h
+ * arch/z8encore000zco/iclude/board.h
  *
  *   Copyright (C) 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -43,18 +43,6 @@
 /****************************************************************************
  * Definitions
  ****************************************************************************/
- 
-/* LED pattern definitions */
-
-#define LED_STARTED                 0
-#define LED_HEAPALLOCATE            1
-#define LED_IRQSENABLED             2
-#define LED_STACKCREATED            3
-#define LED_IDLE                    4
-#define LED_INIRQ                   5
-#define LED_ASSERTION               6
-#define LED_SIGNAL                  6
-#define LED_PANIC                   7
 
 /****************************************************************************
  * Public Functions

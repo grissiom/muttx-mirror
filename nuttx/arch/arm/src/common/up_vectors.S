@@ -1,7 +1,7 @@
-/************************************************************************************
- * arch/arm/src/common/up_vectors.S
+/********************************************************************
+ * common/up_vectors.S
  *
- *   Copyright (C) 2007-2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,24 +31,23 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ************************************************************************************/
+ ********************************************************************/
 
-/************************************************************************************
+/********************************************************************
  * Included Files
- ************************************************************************************/
+ ********************************************************************/
 
 #include <nuttx/config.h>
 #include <nuttx/irq.h>
-
 #include "up_arch.h"
 
-/************************************************************************************
+/********************************************************************
  * Definitions
- ************************************************************************************/
+ ********************************************************************/
 
-/************************************************************************************
+/********************************************************************
  * Global Data
- ************************************************************************************/
+ ********************************************************************/
 
 	.data
 g_irqtmp:
@@ -61,29 +60,29 @@ g_aborttmp:
 	.word	0		/* Saved lr */
 	.word	0		/* Saved spsr */
 
-/************************************************************************************
+/********************************************************************
  * Assembly Macros
- ************************************************************************************/
+ ********************************************************************/
 
-/************************************************************************************
+/********************************************************************
  * Private Functions
- ************************************************************************************/
+ ********************************************************************/
 
 	.text
 
-/************************************************************************************
+/********************************************************************
  * Public Functions
- ************************************************************************************/
+ ********************************************************************/
 
 	.text
 
-/************************************************************************************
+/********************************************************************
  * Name: up_vectorirq
  *
  * Description:
  *   Interrupt excetpion. Entered in IRQ mode with spsr = SVC
  *   CPSR, lr = SVC PC
- ************************************************************************************/
+ ********************************************************************/
 
 	.globl	up_vectorirq
 	.type	up_vectorirq, %function
@@ -129,15 +128,7 @@ up_vectorirq:
 
 	mov	fp, #0			/* Init frame pointer */
 	mov	r0, sp			/* Get r0=xcp */
-
-#if CONFIG_ARCH_INTERRUPTSTACK > 3
-	ldr	sp, .Lirqstackbase	/* SP = interrupt stack base */
-	str	r0, [sp]		/* Save the user stack pointer */
-	bl	up_decodeirq		/* Call the handler */
-	ldr	sp, [sp]		/* Restore the user stack pointer */
-#else
-	bl	up_decodeirq		/* Call the handler */
-#endif
+	bl	up_doirq		/* Call the handler */
 
 	/* Restore the CPSR, SVC modr registers and return */
 .Lnoirqset:
@@ -147,19 +138,15 @@ up_vectorirq:
 
 .Lirqtmp:
 	.word	g_irqtmp
-#if CONFIG_ARCH_INTERRUPTSTACK > 3
-.Lirqstackbase:
-	.word	up_stackbase
-#endif
-	.size	up_vectorirq, . - up_vectorirq
+
 	.align	5
 
-/************************************************************************************
+/********************************************************************
  * Function: up_vectorswi
  * 
  * Description:
  *   SWI interrupt. We enter the SWI in SVC mode
- ************************************************************************************/
+ ********************************************************************/
 
 	.globl	up_vectorswi
 	.type	up_vectorswi, %function
@@ -196,11 +183,10 @@ up_vectorswi:
 	ldr	r0, [sp, #(4*REG_CPSR)]	/* Setup the SVC mode SPSR */
 	msr	spsr, r0
 	ldmia	sp, {r0-r15}^		/* Return */
-	.size	up_vectorswi, . - up_vectorswi
 
 	.align	5
 
-/************************************************************************************
+/********************************************************************
  * Name: up_vectordata
  *
  * Description:
@@ -208,7 +194,7 @@ up_vectorswi:
  *   abort handler.  This function is entered in ABORT mode
  *   with spsr = SVC CPSR, lr = SVC PC
  *
- ************************************************************************************/
+ ********************************************************************/
 	
 	.globl	up_vectordata
 	.type	up_vectordata, %function
@@ -265,17 +251,16 @@ up_vectordata:
 
 .Ldaborttmp:
 	.word	g_aborttmp
-	.size	up_vectordata, . - up_vectordata
 
 	.align	5
 
-/************************************************************************************
+/********************************************************************
  * Name: up_vectorprefetch
  *
  * Description:
  *    Prefetch abort exception.  Entered in ABT mode with
  *    spsr = SVC CPSR, lr = SVC PC
- ************************************************************************************/
+ ********************************************************************/
 	
 	.globl	up_vectorprefetch
 	.type	up_vectorprefetch, %function
@@ -332,18 +317,17 @@ up_vectorprefetch:
 
 .Lpaborttmp:
 	.word	g_aborttmp
-	.size	up_vectorprefetch, . - up_vectorprefetch
 
 	.align	5
 
-/************************************************************************************
+/********************************************************************
  * Name: up_vectorundefinsn
  *
  * Description:
  *   Undefined instruction entry exception.  Entered in
  *   UND mode, spsr = SVC  CPSR, lr = SVC PC
  *
- ************************************************************************************/
+ ********************************************************************/
 	
 	.globl	up_vectorundefinsn
 	.type	up_vectorundefinsn, %function
@@ -399,42 +383,67 @@ up_vectorundefinsn:
 
 .Lundeftmp:
 	.word	g_undeftmp
-	.size	up_vectorundefinsn, . - up_vectorundefinsn
 
 	.align	5
 
-/************************************************************************************
+/********************************************************************
  * Name: up_vectorfiq
  *
  * Description:
  *   Shouldn't happen
- ************************************************************************************/
+ ********************************************************************/
 
 	.globl	up_vectorfiq
 	.type	up_vectorfiq, %function
 up_vectorfiq:
 	subs	pc, lr, #4
-	.size	up_vectofiq, . - up_vectorfiq
 
-/************************************************************************************
- *  Name: up_interruptstack/g_userstack
+/********************************************************************
+ *  Name: up_vectoraddrexcption
  *
  * Description:
  *   Shouldn't happen
  *
- ************************************************************************************/
+ ********************************************************************/
 
-#if CONFIG_ARCH_INTERRUPTSTACK > 3
-	.bss
-	.align	4
-	.globl	g_userstack
-	.type	g_userstack, object
-up_interruptstack:
-	.skip	((CONFIG_ARCH_INTERRUPTSTACK & ~3) - 4)
-g_userstack:
-up_stackbase:
-	.skip	4
-	.size	g_userstack, 4
-	.size	up_interruptstack, (CONFIG_ARCH_INTERRUPTSTACK & ~3)
-#endif
+	.globl	up_vectoraddrexcptn
+	.type	up_vectoraddrexcptn, %function
+up_vectoraddrexcptn:
+	b	up_vectoraddrexcptn
+
+/**************************************************************************
+ * Vector initialization block.
+ **************************************************************************/
+
+/* These will be relocated to VECTOR_BASE. */
+
+	.globl	_vector_start
+_vector_start:
+	ldr	pc, .Lresethandler		/* 0x00: Reset */
+	ldr	pc, .Lundefinedhandler		/* 0x04: Undefined instruction */
+	ldr	pc, .Lswihandler		/* 0x08: Software interrupt */
+	ldr	pc, .Lprefetchaborthandler	/* 0x0c: Prefetch abort */
+	ldr	pc, .Ldataaborthandler		/* 0x10: Data abort */
+	ldr	pc, .Laddrexcptnhandler		/* 0x14: Address exception */
+	ldr	pc, .Lirqhandler		/* 0x18: IRQ */
+	ldr	pc, .Lfiqhandler		/* 0x1c: FIQ */
+
+.Lresethandler:
+	.long   __start
+.Lundefinedhandler:
+	.long	up_vectorundefinsn
+.Lswihandler:
+	.long	up_vectorswi
+.Lprefetchaborthandler:
+	.long	up_vectorprefetch
+.Ldataaborthandler:
+	.long	up_vectordata
+.Laddrexcptnhandler:
+	.long	up_vectoraddrexcptn
+.Lirqhandler:
+	.long	up_vectorirq
+.Lfiqhandler:
+	.long	up_vectorfiq
+	.globl	_vector_end
+_vector_end:
 	.end

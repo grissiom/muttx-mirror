@@ -35,24 +35,18 @@
 
 -include $(TOPDIR)/Make.defs
 
-COMPILER	= ${shell basename $(CC)}
-ifeq ($(COMPILER),zneocc.exe)
-USRINCLUDES     = -usrinc:'.;$(WTOPDIR)\pcode\include;$(WTOPDIR)\pcode\insn\include'
-INCLUDES        = $(ARCHSTDINCLUDES) $(USRINCLUDES)
-else
-USRINCLUDES     = -I$(TOPDIR)/pcode/include -I$(TOPDIR)/pcode/insn/include
-INCLUDES        = $(ARCHINCLUDES) $(USRINCLUDES)
-endif
-CFLAGS          = $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHCPUFLAGS) $(INCLUDES) $(ARCHDEFINES)
+MKDEP	= $(TOPDIR)/tools/mkdeps.sh
+CFLAGS	+= -Iinclude -Iinsn/include
 
-include insn/prun/Make.defs
+ifeq ($(CONFIG_NET),y)
+include insn/Make.defs
 include libpoff/Make.defs
-include libpas/Make.defs
+endif
 
-ASRCS		= $(PRUN_ASRCS) $(POFF_ASRCS) $(PAS_ASRCS)
+ASRCS		= $(INSN_ASRCS) $(POFF_ASRCS)
 AOBJS		= $(ASRCS:.S=$(OBJEXT))
 
-CSRCS		= $(PRUN_CSRCS) $(POFF_CSRCS) $(PAS_CSRCS)
+CSRCS		= $(INSN_CSRCS) $(POFF_CSRCS)
 COBJS		= $(CSRCS:.c=$(OBJEXT))
 
 SRCS		= $(ASRCS) $(CSRCS)
@@ -60,41 +54,36 @@ OBJS		= $(AOBJS) $(COBJS)
 
 BIN		= libpcode$(LIBEXT)
 
-VPATH		= insn/prun:libpoff:libpas
+VPATH		= insn:libpoff
 
 all:	$(BIN)
 
 $(AOBJS): %$(OBJEXT): %.S
-ifeq ($(COMPILER),zneocc.exe)
-	$(call ASSEMBLE, `cygpath -w $<`, $@)
-else
-	$(call ASSEMBLE, $<, $@)
-endif
+	$(CC) -c $(CFLAGS) -D__ASSEMBLY__ $< -o $@
 
 $(COBJS): %$(OBJEXT): %.c
-ifeq ($(COMPILER),zneocc.exe)
-	$(call COMPILE, `cygpath -w $<`, $@)
-else
-	$(call COMPILE, $<, $@)
-endif
+	$(CC) -c $(CFLAGS) $< -o $@
 
 $(BIN):	$(OBJS)
-	@( for obj in $(OBJS) ; do \
-		$(call ARCHIVE, $@, $${obj}); \
+	( for obj in $(OBJS) ; do \
+		$(AR) $@ $${obj} || \
+			{ echo "$(AR) $@ $obj FAILED!" ; exit 1 ; } ; \
 	done ; )
 
 .depend: Makefile $(SRCS)
-	@$(MKDEP) --dep-path . --dep-path insn/prun --dep-path libpoff --dep-path libpas \
-		$(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
-	@touch $@
+ifeq ($(CONFIG_NET),y)
+	$(MKDEP) --dep-path . --dep-path insn --dep-path liboff $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+else
+	$(MKDEP) $(CC) -- $(CFLAGS) -- $(SRCS) >Make.dep
+endif
+	touch $@
 
 depend: .depend
 
 clean:
-	@rm -f $(BIN) *~ .*.swp
-	$(call CLEAN)
+	rm -f $(BIN) *.o *.rel *.asm *.lst *.sym *.adb *~
 
 distclean: clean
-	@rm -f Make.dep .depend
+	rm -f Make.dep .depend
 
 -include Make.dep

@@ -4,15 +4,8 @@ README.txt
 ZDS-II Compiler Versions
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
-Different configurations have been build for this board using ZDS-11
-Versions 4.11.0 and 4.11.1.  You have to check the files */Make.defs
-to see how the build is configured:  Check the definitions of
-ZDSVERSION (if present) and ZDSINSTALLDIR.
-
-NOTE:  Different versions of the ZDS-II compiler may also require
-different versions of .linkcmd and .zdsproj files as well.
-
-Version 4.11.0
+4.11.0
+  This is the only version that this code has been built against.
 
   Although it compiles without error, the 4.11.0 compiler generates
   bad code on one of the files, mm/mm_initialize.c.  Below is a simple work-
@@ -30,10 +23,6 @@ Version 4.11.0
     +#endif
  
    /* Set up global variables */
-
-   UPDATE:  I don't know if 4.11.1 has this same problem (I bet not since
-   I submitted the bug to ZiLOG), but I have permanently worked around the
-   above problem for all ZiLOG compiler.
 
 Other Versions
   If you use any version of ZDS-II other than 4.11.0 or if you install ZDS-II
@@ -64,20 +53,5 @@ available:
 ostest
     This builds the examples/ostest application for execution from FLASH.
     See examples/README.txt for information about ostest.
-
-nsh
-    This configuratino builds the NuttShell (NSH).  That code can be
-    found in examples/nsh.  For more information see:  examples/nsh/README.txt
-    and Documentation/NuttShell.html.
-
-nettest
-    This configuration is used for testing the eZ80F91 EMAC driver.  It
-    builds examples/nettest.  See examples/README.txt for more information
-    about nettest.
-
-poll
-    This configuration is also used for testing the eZ80F91 EMAC driver.  It
-    builds examples/poll.  See examples/README.txt for more information
-    about the poll test.
 
 Check out any README.txt files in these <sub-directory>s.

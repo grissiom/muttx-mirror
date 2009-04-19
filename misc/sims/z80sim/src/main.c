@@ -100,20 +100,12 @@ void JumpZ80(word PC)
 {
 	if (gtrace)
 	{
-		printf("PC: %04X [%02X] HL: %04X SP: %04X [%04X, %04X, ...]\n",
-			gR.PC.W, memory[gR.PC.W], gR.HL.W, gR.SP.W,
-			((int)memory[gR.SP.W]   | ((int)memory[gR.SP.W+1]) << 8),
-			((int)memory[gR.SP.W+2] | ((int)memory[gR.SP.W+3]) << 8));
+		printf("PC: %04x\n", PC);
 	}
 }
 #endif
 
-/* Intel hex code based largely on code taken from the PJRC website.
- * Licensing requires the following:
- *
- * Author:  Paul Stoffregen
- * Contact: paul@ece.orst.edu
- */
+/* Intel hex code based largely on code taken from the PJRC website */
 
 /* Name:        parse_hex
  * Description: Parse one line from an Intel hex file
@@ -325,15 +317,9 @@ int load_file(const char *filename)
 
 void sighandler(int signo)
 {
-	sigset_t set;
 	char command[80];
 	int i;
 	int j;
-
-	sigemptyset(&set);
-	sigaddset(&set, SIGINT);
-	sigprocmask(SIG_UNBLOCK, &set, NULL);
-	signal(SIGINT, SIG_DFL);
 
 	printf("AF:%04X HL:%04X DE:%04X BC:%04X PC:%04X SP:%04X IX:%04X IY:%04X I:%02X\n",
 		gR.AF.W, gR.HL.W, gR.DE.W, gR.BC.W, gR.PC.W, gR.SP.W, gR.IX.W, gR.IY.W, gR.I);

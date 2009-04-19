@@ -40,7 +40,6 @@
 #include <nuttx/config.h>
 
 #include <sys/types.h>
-#include <stdlib.h>
 #include <errno.h>
 #include <debug.h>
 
@@ -83,7 +82,7 @@
  *
  ****************************************************************************/
 
-int nx_kbdin(NXHANDLE handle, ubyte nch, FAR const ubyte *ch)
+int int nx_kbdin(NXHANDLE handle, ubyte nch const char *ch)
 {
   FAR struct nxfe_conn_s  *conn = (FAR struct nxfe_conn_s *)handle;
   FAR struct nxsvrmsg_kbdin_s *outmsg;
@@ -105,15 +104,15 @@ int nx_kbdin(NXHANDLE handle, ubyte nch, FAR const ubyte *ch)
 
   /* Inform the server of the new keypad data */
 
-  outmsg->msgid = NX_SVRMSG_KBDIN;
-  outmsg->nch   = nch;
+  outsg->msgid = NX_SVRMSG_KBDIN;
+  outmsg->nch  = nch;
 
-  for (i = 0; i < nch; i++)
+  for (i = 0; i < nch; i+)
     {
       outmsg->ch[i] = ch[i];
     }
 
-  ret = mq_send(conn->cwrmq, outmsg, size, NX_SVRMSG_PRIO);
+  ret = mq_send(conn->c_cwrmq, outmsg, size, NX_SVRMSG_PRIO);
   if (ret < 0)
     {
       gdbg("mq_send failed: %d\n", errno);

@@ -1,5 +1,5 @@
 #!/bin/bash
-# configs/mcu123-lpc2148/ostest/setenv.sh
+# mcu123-lpc2148/setenv.sh
 #
 #   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -41,7 +41,6 @@ if [ -z ${PATH_ORIG} ]; then export PATH_ORIG=${PATH}; fi
 
 WD=`pwd`
 export BUILDROOT_BIN=${WD}/../buildroot/build_arm_nofpu/staging_dir/bin
-export LPC214XSCRIPTS=$WD/configs/mcu123-lpc214x/scripts
-export PATH=${BUILDROOT_BIN}:${LPC214XSCRIPTS}:/sbin:/usr/sbin:${PATH_ORIG}
+export PATH=${BUILDROOT_BIN}:/sbin:/usr/sbin:${PATH_ORIG}
 
 echo "PATH : ${PATH}"

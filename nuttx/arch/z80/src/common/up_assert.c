@@ -46,11 +46,12 @@
 
 #include <nuttx/irq.h>
 #include <nuttx/arch.h>
+#include <chip/chip.h>
 
-#include "chip/chip.h"
 #include "up_arch.h"
 #include "os_internal.h"
 #include "up_internal.h"
+#include "up_mem.h"
 
 /****************************************************************************
  * Definitions
@@ -108,11 +109,7 @@ static void _up_assert(int errorcode) /* __attribute__ ((noreturn)) */
  * Name: up_assert
  ****************************************************************************/
 
-#ifdef CONFIG_HAVE_FILENAME
 void up_assert(const ubyte *filename, int lineno)
-#else
-void up_assert(void)
-#endif
 {
 #if CONFIG_TASK_NAME_SIZE > 0
   _TCB *rtcb = (_TCB*)g_readytorun.head;
@@ -120,7 +117,6 @@ void up_assert(void)
 
   up_ledon(LED_ASSERTION);
 
-#ifdef CONFIG_HAVE_FILENAME
 #if CONFIG_TASK_NAME_SIZE > 0
   lldbg("Assertion failed at file:%s line: %d task: %s\n",
         filename, lineno, rtcb->name);
@@ -128,16 +124,9 @@ void up_assert(void)
   lldbg("Assertion failed at file:%s line: %d\n",
         filename, lineno);
 #endif
-#else
-#if CONFIG_TASK_NAME_SIZE > 0
-  lldbg("Assertion failed: task: %s\n", rtcb->name);
-#else
-  lldbg("Assertion failed\n");
-#endif
-#endif
 
   up_stackdump();
-  REGISTER_DUMP();
+  up_registerdump();
  _up_assert(EXIT_FAILURE);
 }
 
@@ -145,11 +134,7 @@ void up_assert(void)
  * Name: up_assert_code
  ****************************************************************************/
 
-#ifdef CONFIG_HAVE_FILENAME
 void up_assert_code(const ubyte *filename, int lineno, int errorcode)
-#else
-void up_assert_code(int errorcode)
-#endif
 {
 #if CONFIG_TASK_NAME_SIZE > 0
   _TCB *rtcb = (_TCB*)g_readytorun.head;
@@ -157,7 +142,6 @@ void up_assert_code(int errorcode)
 
   up_ledon(LED_ASSERTION);
 
-#ifdef CONFIG_HAVE_FILENAME
 #if CONFIG_TASK_NAME_SIZE > 0
   lldbg("Assertion failed at file:%s line: %d task: %s error code: %d\n",
         filename, lineno, rtcb->name, errorcode);
@@ -165,15 +149,8 @@ void up_assert_code(int errorcode)
   lldbg("Assertion failed at file:%s line: %d error code: %d\n",
         filename, lineno, errorcode);
 #endif
-#else
-#if CONFIG_TASK_NAME_SIZE > 0
-  lldbg("Assertion failed: task: %s error code: %d\n", rtcb->name, errorcode);
-#else
-  lldbg("Assertion failed: error code: %d\n", errorcode);
-#endif
-#endif
 
   up_stackdump();
-  REGISTER_DUMP();
+  up_registerdump();
  _up_assert(errorcode);
 }

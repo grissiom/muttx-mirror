@@ -33,8 +33,8 @@
  *
  ************************************************************************************/
 
-#ifndef __ARCH_ARM_SRC_STR71X_STR71X_WDOG_H
-#define __ARCH_ARM_SRC_STR71X_STR71X_WDOG_H
+#ifndef #define __ARCH_ARM_SRC_STR71X_STR71X_WDOG_H
+#define #define __ARCH_ARM_SRC_STR71X_STR71X_WDOG_H
 
 /************************************************************************************
  * Included Files
@@ -72,4 +72,4 @@
  * Public Functions
  ************************************************************************************/
 
-#endif /* __ARCH_ARM_SRC_STR71X_STR71X_WDOG_H */
+#endif /* #define __ARCH_ARM_SRC_STR71X_STR71X_WDOG_H */

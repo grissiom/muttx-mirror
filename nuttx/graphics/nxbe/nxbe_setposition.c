@@ -40,7 +40,7 @@
 #include <nuttx/config.h>
 #include <sys/types.h>
 
-#include <nuttx/nxglib.h>
+#include <nuttx/nx.h>
 
 #include "nxbe.h"
 #include "nxfe.h"
@@ -81,7 +81,6 @@
 void nxbe_setposition(FAR struct nxbe_window_s *wnd,
                       FAR const struct nxgl_point_s *pos)
 {
-  struct nxgl_rect_s before;
   struct nxgl_rect_s rect;
 
 #ifdef CONFIG_DEBUG
@@ -93,23 +92,22 @@ void nxbe_setposition(FAR struct nxbe_window_s *wnd,
 
   /* Back out the old window origin position from the bounding box */
 
-  nxgl_rectoffset(&rect, &wnd->bounds, -wnd->bounds.pt1.x, -wnd->bounds.pt1.y);
+  nxgl_rectoffset(&rect, &wnd->bounds, -wnd->origin.x, -wnd->origin.y);
 
-  /* Add the new window origin into the bounding box */
+  /* Set the new origin */
 
-  nxgl_rectcopy(&before, &wnd->bounds);
-  nxgl_rectoffset(&wnd->bounds, &rect, pos->x, pos->y);
+  wnd->origin.x = pos->x;
+  wnd->origin.y = pos->y;
 
-  /* Get the union of the 'before' bounding box and the 'after' bounding
-   * this union is the region of the display that must be updated.
+  /* Add the new window origin back into the bounding box */
+
+  nxgl_rectoffset(&wnd->bounds, &rect, wnd->origin.x, wnd->origin.y);
+
+  /* Clip the rectangle so that is lies with the screen defined by the
+   * background window.
    */
 
-  nxgl_rectunion(&rect, &before, &wnd->bounds);
   nxgl_rectintersect(&rect, &rect, &wnd->be->bkgd.bounds);
-
-  /* Report the new size/position */
-
-  nxfe_reportposition(wnd);
 
   /* Then redraw this window AND all windows below it. Having moved the
    * window, we may have exposed previoulsy obscured portions of windows
@@ -117,4 +115,10 @@ void nxbe_setposition(FAR struct nxbe_window_s *wnd,
    */
 
   nxbe_redrawbelow(wnd->be, wnd, &rect);
+
+  /* Report the new size/position */
+
+#ifdef CONFIG_NX_MULTIUSER
+  nxmu_getposition(wnd);
+#endif
 }

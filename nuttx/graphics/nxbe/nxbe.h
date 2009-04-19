@@ -55,9 +55,12 @@
 #  define CONFIG_NX_NPLANES      1  /* Max number of color planes supported */
 #endif
 
-#ifndef CONFIG_NX_NCOLORS
-#  define CONFIG_NX_NCOLORS 256
-#endif
+/* Mnemonics for indices */
+
+#define NX_TOP_NDX           (0)
+#define NX_LEFT_NDX          (1)
+#define NX_RIGHT_NDX         (2)
+#define NX_BOTTOM_NDX        (3)
 
 /* These are the values for the clipping order provided to nx_clipper */
 
@@ -83,10 +86,6 @@ struct nxbe_plane_s
 
   void (*fillrectangle)(FAR struct fb_planeinfo_s *pinfo,
                         FAR const struct nxgl_rect_s *rect,
-                        nxgl_mxpixel_t color);
-  void (*filltrapezoid)(FAR struct fb_planeinfo_s *pinfo,
-                        FAR const struct nxgl_trapezoid_s *trap,
-                        FAR const struct nxgl_rect_s *bounds,
                         nxgl_mxpixel_t color);
   void (*moverectangle)(FAR struct fb_planeinfo_s *pinfo,
                         FAR const struct nxgl_rect_s *rect,
@@ -129,28 +128,21 @@ struct nxbe_window_s
 {
   /* State information */
 
-  FAR struct nxbe_state_s *be;        /* The back-end state structure */
+  FAR struct nxbe_state_s *be;      /* The back-end state structure */
 #ifdef CONFIG_NX_MULTIUSER
-  FAR struct nxfe_conn_s *conn;       /* Connection to the window client */
+  FAR struct nxfe_conn_s *conn;     /* Connection to the window client */
 #endif
-  FAR const struct nx_callback_s *cb; /* Event handling callbacks */
 
   /* The following links provide the window's vertical position using a
    * singly linked list.
    */
 
-  FAR struct nxbe_window_s *above;    /* The window "above" this window */
-  FAR struct nxbe_window_s *below;    /* The window "below this one */
+  FAR struct nxbe_window_s *above;  /* The window "above" this window */
+  FAR struct nxbe_window_s *below;  /* The window "below this one */
 
-  /* Window geometry.  The window is described by a rectangle in the
-   * absolute screen coordinate system (0,0)->(xres,yres)
-   */
 
-  struct nxgl_rect_s bounds;          /* The bounding rectangle of window */
-
-  /* Client state information this is provide in window callbacks */
-
-  FAR void *arg;
+  struct nxgl_rect_s bounds;        /* The bounding rectangle of window */
+  struct nxgl_point_s origin;       /* The position of the top-left corner of the window */
 };
 
 /* Back-end state ***********************************************************/
@@ -163,13 +155,6 @@ struct nxbe_state_s
 
   FAR struct nxbe_window_s *topwnd; /* The window at the top of the display */
   struct nxbe_window_s bkgd;        /* The background window is always at the bottom */
-
-  /* At present, only a solid colored background is supported for refills.  The
-   * following provides the background color.  It would be nice to support
-   * background bitmap images as well.
-   */
-
-  nxgl_mxpixel_t bgcolor[CONFIG_NX_NPLANES];
 
   /* vinfo describes the video controller and plane[n].pinfo describes color
    * plane 'n' supported by the video controller.  Most common color models
@@ -209,7 +194,7 @@ extern "C" {
  ****************************************************************************/
 
 #if CONFIG_FB_CMAP
-EXTERN int nxbe_colormap(FAR struct fb_vtable_s *fb);
+EXTERN int nxbe_colormap(FAR const fb_vtable_s *fb);
 #endif
 
 /****************************************************************************
@@ -262,7 +247,7 @@ EXTERN void nxbe_setposition(FAR struct nxbe_window_s *wnd,
  ****************************************************************************/
 
 EXTERN void nxbe_setsize(FAR struct nxbe_window_s *wnd,
-                         FAR const struct nxgl_size_s *size);
+                         FAR const struct nxgl_rect_s *size);
 
 /****************************************************************************
  * Name: nxbe_raise
@@ -303,28 +288,6 @@ EXTERN void nxbe_lower(FAR struct nxbe_window_s *wnd);
 EXTERN void nxbe_fill(FAR struct nxbe_window_s *wnd,
                       FAR const struct nxgl_rect_s *rect,
                       nxgl_mxpixel_t color[CONFIG_NX_NPLANES]);
-
-/****************************************************************************
- * Name: nxbe_filltrapezoid
- *
- * Description:
- *  Fill the specified rectangle in the window with the specified color
- *
- * Input Parameters:
- *   wnd  - The window structure reference
- *   clip - Clipping region (may be null)
- *   rect - The location to be filled
- *   col  - The color to use in the fill
- *
- * Return:
- *   None
- *
- ****************************************************************************/
-
-EXTERN void nxbe_filltrapezoid(FAR struct nxbe_window_s *wnd,
-                               FAR const struct nxgl_rect_s *clip,
-                               FAR const struct nxgl_trapezoid_s *trap,
-                               nxgl_mxpixel_t color[CONFIG_NX_NPLANES]);
 
 /****************************************************************************
  * Name: nxbe_move
@@ -401,18 +364,6 @@ EXTERN void nxbe_redraw(FAR struct nxbe_state_s *be,
 EXTERN void nxbe_redrawbelow(FAR struct nxbe_state_s *be,
                              FAR struct nxbe_window_s *wnd,
                              FAR const struct nxgl_rect_s *rect);
-
-/****************************************************************************
- * Name: nxbe_visible
- *
- * Descripton:
- *   Return true if the point, pt, in window wnd is visible.  pt is in
- *   absolute screen coordinates
- *
- ****************************************************************************/
-
-EXTERN boolean nxbe_visible(FAR struct nxbe_window_s *wnd,
-                            FAR const struct nxgl_point_s *pos);
 
 /****************************************************************************
  * Name: nxbe_clipper

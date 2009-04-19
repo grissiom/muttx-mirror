@@ -93,7 +93,7 @@ __start:
 
 	/* Copy system .data sections to new home in RAM. */
 
-#ifdef CONFIG_BOOT_RUNFROMFLASH
+#ifdef CONFIG_BOOT_FROM_FLASH
 
 	adr	r3, LC2
 	ldmia	r3, {r0, r1, r2}
@@ -104,13 +104,10 @@ __start:
 	blt	1b
 
 #endif
-
 	/* Perform early serial initialization */
 
 	mov	fp, #0
-#ifdef CONFIG_USE_EARLYSERIALINIT
 	bl	up_earlyserialinit
-#endif
 
 #ifdef CONFIG_DEBUG
 	mov	r0, #'C'
@@ -132,16 +129,16 @@ __start:
 	 * _sbss is the start of the BSS region (see ld.script)
 	 * _ebss is the end of the BSS regsion (see ld.script)
 	 * The idle task stack starts at the end of BSS and is
-	 * of size CONFIG_IDLETHREAD_STACKSIZE.  The heap continues
+	 * of size CONFIG_PROC_STACK_SIZE.  The heap continues
 	 * from there until the end of memory.  See g_heapbase
 	 * below.
 	 */
 
 LC0:	.long	_sbss
 	.long	_ebss
-	.long	_ebss+CONFIG_IDLETHREAD_STACKSIZE-4
+	.long	_ebss+CONFIG_PROC_STACK_SIZE-4
 
-#ifdef CONFIG_BOOT_RUNFROMFLASH
+#ifdef CONFIG_BOOT_FROM_FLASH
 LC2:	.long	_eronly	/* Where .data defaults are stored in FLASH */
 	.long	_sdata	/* Where .data needs to reside in SDRAM */
 	.long	_edata
@@ -158,7 +155,7 @@ LC2:	.long	_eronly	/* Where .data defaults are stored in FLASH */
 	.globl	g_heapbase
 	.type	g_heapbase, object
 g_heapbase:
-	.long	_ebss+CONFIG_IDLETHREAD_STACKSIZE
+	.long	_ebss+CONFIG_PROC_STACK_SIZE
 	.size	g_heapbase, .-g_heapbase
 
 	.end

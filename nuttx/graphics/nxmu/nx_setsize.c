@@ -85,7 +85,7 @@
  *
  ****************************************************************************/
 
-int nx_setsize(NXWINDOW hwnd, FAR struct nxgl_size_s *size)
+int nx_setsize(NXWINDOW hwnd, FAR struct nxgl_rect_s *size)
 {
   FAR struct nxbe_window_s   *wnd = (FAR struct nxbe_window_s *)hwnd;
   struct nxsvrmsg_setsize_s outmsg;
@@ -101,10 +101,9 @@ int nx_setsize(NXWINDOW hwnd, FAR struct nxgl_size_s *size)
 
   /* Then inform the server of the changed position */
 
-  outmsg.msgid  = NX_SVRMSG_SETSIZE;
-  outmsg.wnd    = wnd;
-  outmsg.size.w = size->w;
-  outmsg.size.h = size->h;
+  outmsg.msgid = NX_SVRMSG_SETSIZE;
+  outmsg.wnd   = wnd;
+  nxgl_rectcopy(&outmsg.size, size);
 
   ret = mq_send(wnd->conn->cwrmq, &outmsg, sizeof(struct nxsvrmsg_setsize_s), NX_SVRMSG_PRIO);
   if (ret < 0)

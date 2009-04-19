@@ -34,7 +34,4 @@
 ############################################################################
 
 NXFONTS_ASRCS	=
-NXFCONV_CSRC	= nxfonts_convert_2bpp.c nxfonts_convert_4bpp.c \
-		  nxfonts_convert_8bpp.c nxfonts_convert_16bpp.c \
-		  nxfonts_convert_24bpp.c nxfonts_convert_32bpp.c
-NXFONTS_CSRCS	= nxfonts_bitmaps.c nxfonts_getfont.c $(NXFCONV_CSRC)
+NXFONTS_CSRCS	= nxfonts_bitmaps.c

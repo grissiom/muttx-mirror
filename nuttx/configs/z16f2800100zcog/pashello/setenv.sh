@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # z16f2800100zcog/setenv.sh
 #
 #   Copyright (C) 2008 Gregory Nutt. All rights reserved.

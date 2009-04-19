@@ -1,5 +1,5 @@
 ############################################################################
-# configs/z80sim/pashello/Make.defs
+# configs/z80sim/Make.defs
 #
 #   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -67,11 +67,6 @@ OBJEXT			= .o
 LIBEXT			= .lib
 EXEEXT			= .hex
 
-define PREPROCESS
-	@echo "CPP: $1->$2"
-	@$(CPP) $(CPPFLAGS) $1 -o $2
-endef
-
 define COMPILE
 	@echo "CC: $1"
 	@$(CC) -c $(CFLAGS) $1 -o $2
@@ -88,7 +83,7 @@ define ARCHIVE
 endef
 
 define CLEAN
-	@rm -f *.o *.asm *.rel *.lst *.rst *.sym *.adb *.lnk *.map *.mem *.ihx *.hex
+	@rm -f *.asm *.rel *.lst *.rst *.sym *.adb *.lnk *.map *.mem *.ihx *.hex
 endef
 
 MKDEP			= $(TOPDIR)/tools/mkdeps.sh

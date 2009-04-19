@@ -126,18 +126,18 @@
 #define STR71X_UARTCR_MODE8BIT      (0x0001) /*   8-bit */
 #define STR71X_UARTCR_MODE7BITP     (0x0003) /*   7-bit with parity bit */
 #define STR71X_UARTCR_MODE9BIT      (0x0004) /*   9-bit */
-#define STR71X_UARTCR_MODE8BITWU    (0x0005) /*   8-bit with wakeup bit */
-#define STR71X_UARTCR_MODE8BITP     (0x0007) /*   8-bit with parity bit */
+#define STR71X_UARTCR_MODE8BIT      (0x0005) /*   8-bit with wakeup bit */
+#define STR71X_UARTCR_MODE8BIT      (0x0007) /*   8-bit with parity bit */
 #define STR71X_UARTCR_STOPBITSMASK  (0x0018) /* Bits 3-4: Stop bits */
-#define STR71X_UARTCR_STOPBIT05     (0x0000) /*   0.5 stop bits */
-#define STR71X_UARTCR_STOPBIT10     (0x0008) /*   1.0 stop bit */
-#define STR71X_UARTCR_STOPBIT15     (0x0010) /*   1.5 stop bits */
-#define STR71X_UARTCR_STOPBIT20     (0x0018) /*   2.0 stop bits */
-#define STR71X_UARTCR_PARITYODD     (0x0020) /* Bit 5: Parity selection */
-#define STR71X_UARTCR_LOOPBACK      (0x0040) /* Bit 6: Loopback mode enable */
-#define STR71X_UARTCR_RUN           (0x0080) /* Bit 7: Baudrate generator run bit */
-#define STR71X_UARTCR_RXENABLE      (0x0100) /* Bit 8: Receiver enable */
-#define STR71X_UARTCR_SCENABLE      (0x0200) /* Bit 9: SmartCard mode enable */
+#define STR71X_UARTCR_STOPBIT0      (0x0000) /*   0.5 stop bits */
+#define STR71X_UARTCR_STOPBIT1      (0x0008) /*   1 stop bit */
+#define STR71X_UARTCR_STOPBIT0      (0x0010) /*   1.5 stop bits */
+#define STR71X_UARTCR_STOPBIT0      (0x0018) /*   2 stop bits */
+#define STR71X_UARTCR_PARITYODD     (0x0020) /* Bit 5:
+#define STR71X_UARTCR_LOOPBACK      (0x0040) /* Bit 6:
+#define STR71X_UARTCR_RUN           (0x0080) /* Bit 7: 
+#define STR71X_UARTCR_RXENABLE      (0x0100) /* Bit 8:
+#define STR71X_UARTCR_SCENABLE      (0x0200) /* Bit 9: 
 #define STR71X_UARTCR_FIFOENABLE    (0x0400) /* Bit 10: FIFO enable */
 
 /* UART interrupt enable (IER) register */
@@ -151,7 +151,6 @@
 #define STR71X_UARTIER_TIMEOUTNE    (0x0040) /* Bit 6: Time out not empty*/
 #define STR71X_UARTIER_TIMEOUTIDLE  (0x0080) /* Bit 7: Timeout out idle */
 #define STR71X_UARTIER_RHF          (0x0100) /* Bit 8: Rx half full */
-#define STR71X_UIRTIER_ALL          (0x01ff) /* All interrupt bits */
 
 /* UART status register (SR) */
 

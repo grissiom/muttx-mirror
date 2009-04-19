@@ -1,5 +1,5 @@
 ############################################################################
-# configs/z16f2800100zcog/ostest/Make.defs
+# configs/z16f2800100zcog/Make.defs
 #
 #   Copyright (C) 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
@@ -41,9 +41,6 @@ ZDSINSTALLDIR		:= C:/Program\ Files/ZiLOG/ZDSII_ZNEO_4.11.0
 ZDSBINDIR		:= $(ZDSINSTALLDIR)/bin
 ZDSSTDINCDIR		:= $(ZDSINSTALLDIR)/include/std
 ZDSZILOGINCDIR		:= $(ZDSINSTALLDIR)/include/zilog
-ZDSSTDLIBDIR		:= $(ZDSINSTALLDIR)/lib/std
-ZDSZILOGLIBDIR		:= $(ZDSINSTALLDIR)/lib/zilog
-
 
 # These are the same directories but with the directory separator
 # character swapped as needed by the ZNeo-II compiler
@@ -51,8 +48,6 @@ ZDSZILOGLIBDIR		:= $(ZDSINSTALLDIR)/lib/zilog
 WTOPDIR 		:= ${shell cygpath -w $(TOPDIR)}
 WZDSSTDINCDIR		:= ${shell cygpath -w $(ZDSSTDINCDIR)}
 WZDSZILOGINCDIR 	:= ${shell cygpath -w $(ZDSZILOGINCDIR)}
-WZDSSTDLIBDIR		:= ${shell cygpath -w $(ZDSSTDLIBDIR)}
-WZDSZILOGLIBDIR 	:= ${shell cygpath -w $(ZDSZILOGLIBDIR)}
 
 # Escaped versions
 
@@ -84,9 +79,9 @@ else
   ARCHOPTIMIZATION	= -nodebug -regvar
 endif
 
-ARCHCPUFLAGS		= -chartype:S -model:L -NOmodsect -cpu:Z16F2811AL -NOgenprint \
+ARCHCPUFLAGS		= -chartype:S -model:L -NOmodsect -cpu:Z16F2811AL \
 			  -asmsw:" $(ARCHASMCPUFLAGS) $(ARCHASMINCLUDES) $(ARCHASMWARNINGS) $(ARCHASMOPTIMIZATION)"
-ARCHLIST		= -keeplst -NOlist -NOlistinc -NOkeepasm
+ARCHLIST		= -NOgenprint -keeplst -NOlist -NOlistinc -NOkeepasm
 ARCHPICFLAGS		=
 ARCHWARNINGS		= -warn
 ARCHDEFINES		= -define:_Z16F2811AL -define:_Z16K_SERIES \
@@ -94,12 +89,8 @@ ARCHDEFINES		= -define:_Z16F2811AL -define:_Z16K_SERIES \
 ARCHSTDINCLUDES 	= -stdinc:'$(WTOPDIR)\include;$(WZDSSTDINCDIR);$(WZDSZILOGINCDIR)'
 ARCHUSRINCLUDES 	= -usrinc:'.'
 ARCHINCLUDES		= $(ARCHSTDINCLUDES) $(ARCHUSRINCLUDES)
-CFLAGS			= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) $(ARCHLIST) \
+CFLAGS			= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) \
 			  $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES)
-
-CPPDEFINES              = -D_Z16F2811AL -D_Z16K_SERIES -D_Z16F_SERIES -D__ASSEMBLY__
-CPPINCLUDES             = -I$(TOPDIR)/include
-CPPFLAGS                = $(CPPDEFINES) $(CPPINCLUDES)
 
 # Librarian definitions
 
@@ -113,7 +104,7 @@ LINKCMDTEMPLATE 	= $(TOPDIR)/configs/z16f2800100zcog/ostest/ostest.linkcmd
 
 CROSSDEV		=
 CC			= $(ZDSBINDIR)/zneocc.exe
-CPP			= gcc -E
+CPP			= $(ZDSBINDIR)/zneoasm.exe
 LD			= $(ZDSBINDIR)/zneolink.exe
 AS			= $(ZDSBINDIR)/zneoasm.exe
 AR			= $(ZDSBINDIR)/zneolib.exe
@@ -129,19 +120,14 @@ EXEEXT			= .hex
 # to compile and assembly source files and to insert the resulting
 # object files into an archive
 
-define PREPROCESS
-	@echo "CPP: $1->$2"
-	@$(CPP) $(CPPFLAGS) $1 -o $2
-endef
-
 define COMPILE
-	@#echo "CC: $1"
-	@(wfile=`cygpath -w $1`; $(CC) $(CFLAGS) $$wfile)
+	@echo "CC: $1"
+	@$(CC) $(CFLAGS) $1
 endef
 
 define ASSEMBLE
-	@#echo "AS: $1"
-	@(wfile=`cygpath -w $1`; $(AS) $(AFLAGS) $$wfile)
+	@echo "AS: $1"
+	@$(AS) -c $(AFLAGS) $1
 endef
 
 define ARCHIVE
@@ -150,7 +136,7 @@ define ARCHIVE
 endef
 
 define CLEAN
-	@rm -f *.obj *.src *.lib *.hex *.lst
+	@rm -f *.obj *.src *.lib *.hex
 endef
 
 # This is the tool to use for dependencies (i.e., none)

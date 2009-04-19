@@ -1,7 +1,7 @@
 /****************************************************************************
- * arch/z80/src/common/up_internal.h
+ * common/up_internal.h
  *
- *   Copyright (C) 2007, 2008, 2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -37,7 +37,14 @@
 #define __UP_INTERNAL_H
 
 /****************************************************************************
- * Conditional Compilation
+ * Included Files
+ ****************************************************************************/
+
+#include <arch/irq.h>
+#include <chip/chip.h>
+
+/****************************************************************************
+ * Definitions
  ****************************************************************************/
 
 /* Bring-up debug configurations.  These are here (vs defconfig)
@@ -49,70 +56,74 @@
 #undef  CONFIG_SUPPRESS_TIMER_INTS    /* No timer */
 #undef  CONFIG_SUPPRESS_SERIAL_INTS   /* Console will poll */
 #undef  CONFIG_SUPPRESS_UART_CONFIG   /* Do not reconfig UART */
-#undef  CONFIG_DUMP_ON_EXIT           /* Dump task state on exit */
+#define CONFIG_DUMP_ON_EXIT         1 /* Dump task state on exit */
 
-/****************************************************************************
- * Included Files
- ****************************************************************************/
+/* Macros for portability */
 
-#include <arch/irq.h>
-#include "chip/chip.h"
-#include "chip/switch.h"
-
-/****************************************************************************
- * Definitions
- ****************************************************************************/
-
-/* Determine which (if any) console driver to use */
-
-#if CONFIG_NFILE_DESCRIPTORS == 0 || defined(CONFIG_DEV_LOWCONSOLE)
-#  undef CONFIG_USE_SERIALDRIVER
-#  ifdef CONFIG_HAVE_LOWUARTINIT
-#    define CONFIG_USE_LOWUARTINIT 1
-#  else
-#    undef CONFIG_USE_LOWUARTINIT
-#  endif
-#elif defined(CONFIG_DEV_CONSOLE) && CONFIG_NFILE_DESCRIPTORS > 0
-#  define CONFIG_USE_SERIALDRIVER 1
-#  undef CONFIG_USE_LOWUARTINIT
-#endif
+#define IN_INTERRUPT             (current_regs != NULL)
+#define SAVE_IRQCONTEXT(tcb)     up_copystate((tcb)->xcp.regs, current_regs)
+#define SET_IRQCONTEXT(tcb)      up_copystate(current_regs, (tcb)->xcp.regs)
+#define SAVE_USERCONTEXT(tcb)    up_saveusercontext((tcb)->xcp.regs)
+#define RESTORE_USERCONTEXT(tcb) up_restoreusercontext((tcb)->xcp.regs)
 
 /****************************************************************************
  * Public Types
  ****************************************************************************/
 
+#ifndef __ASSEMBLY__
+typedef void (*up_vector_t)(void);
+#endif
+
 /****************************************************************************
  * Public Variables
  ****************************************************************************/
+
+#ifndef __ASSEMBLY__
+/* This holds a references to the current interrupt level
+ * register storage structure.  If is non-NULL only during
+ * interrupt processing.
+ */
+
+extern uint16 *current_regs;
+#endif
 
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
-#ifdef __cplusplus
-#define EXTERN extern "C"
-extern "C" {
-#else
-#define EXTERN extern
-#endif
 
-/* Supplied by chip- or board-specific logic */
+/* Defined in up_copystate.c */
 
-EXTERN void up_irqinitialize(void);
-EXTERN int  up_timerisr(int irq, FAR chipreg_t *regs);
+extern void up_copystate(FAR chipreg_t *dest, FAR const chipreg_t *src);
 
-#ifdef CONFIG_USE_LOWUARTINIT
-EXTERN void up_lowuartinit(void);
-#endif
+/* Defined in up_saveusercontext.asm */
+
+extern int up_saveusercontext(chipreg_t *regs);
+
+/* Defined in up_restoreusercontext.asm */
+
+extern int up_restoreusercontext(chipreg_t *regs);
+
+/* Supplied by board-specific logic */
+
+extern FAR chipreg_t *up_decodeirq(FAR chipreg_t *regs);
+extern void up_irqinitialize(void);
+extern int  up_timerisr(int irq, FAR chipreg_t *regs);
 
 /* Defined in up_doirq.c */
 
-EXTERN FAR chipreg_t *up_doirq(ubyte irq, FAR chipreg_t *regs);
+extern void up_doirq(int irq, FAR chipreg_t *regs);
 
 /* Define in up_sigdeliver */
 
-EXTERN void up_sigdeliver(void);
+extern void up_sigdeliver(void);
+
+#ifdef CONFIG_DEBUG
+extern void up_lowputc(char ch);
+#else
+# define up_lowputc(ch)
+#endif
 
 /* Defined in up_allocateheap.c */
 
@@ -122,80 +133,52 @@ void up_addregion(void);
 
 /* Defined in up_serial.c */
 
-#ifdef CONFIG_USE_SERIALDRIVER
-EXTERN void up_serialinit(void);
+#if CONFIG_NFILE_DESCRIPTORS > 0
+extern void up_earlyserialinit(void);
+extern void up_serialinit(void);
 #else
+# define up_earlyserialinit()
 # define up_serialinit()
 #endif
 
-/* Defined in drivers/lowconsole.c */
-
-#ifdef CONFIG_DEV_LOWCONSOLE
-EXTERN void lowconsole_init(void);
-#else
-# define lowconsole_init()
-#endif
-
-/* Low level string output */
-
-extern void up_puts(const char *str);
-
 /* Defined in up_timerisr.c */
 
-EXTERN void up_timerinit(void);
+extern void up_timerinit(void);
 
 /* Defined in board/up_leds.c */
 
 #ifdef CONFIG_ARCH_LEDS
-EXTERN void up_ledinit(void);
-EXTERN void up_ledon(int led);
-EXTERN void up_ledoff(int led);
+extern void up_ledinit(void);
+extern void up_ledon(int led);
+extern void up_ledoff(int led);
 #else
 # define up_ledinit()
 # define up_ledon(led)
 # define up_ledoff(led)
 #endif
 
-/* Architecture specific hook into the timer interrupt handler */
-
-#ifdef CONFIG_ARCH_TIMERHOOK
-EXTERN void up_timerhook(void);
-#endif
-
 /* Defined in board/up_network.c */
 
 #ifdef CONFIG_NET
-EXTERN int  up_netinitialize(void);
-EXTERN void up_netuninitialize(void);
-# ifdef CONFIG_ARCH_MCFILTER
-EXTERN int up_multicastfilter(FAR struct uip_driver_s *dev, FAR ubyte *mac, boolean enable);
-# else
-#   define up_multicastfilter(dev, mac, enable)
-# endif
+extern void up_netinitialize(void);
 #else
 # define up_netinitialize()
-# define up_netuninitialize()
-# define up_multicastfilter(dev, mac, enable)
 #endif
 
 /* Return the current value of the stack pointer (used in stack dump logic) */
 
-EXTERN uint16 up_getsp(void);
+extern uint16 up_getsp(void);
 
 /* Dump stack and registers */
 
 #ifdef CONFIG_ARCH_STACKDUMP
-EXTERN void up_stackdump(void);
-# define REGISTER_DUMP() _REGISTER_DUMP()
+extern void up_stackdump(void);
+extern void up_registerdump(void);
 #else
 # define up_stackdump()
-# define REGISTER_DUMP()
+# define up_registerdump()
 #endif
 
-#undef EXTERN
-#ifdef __cplusplus
-}
-#endif
-#endif
+#endif /* __ASSEMBLY__ */
 
 #endif  /* __UP_INTERNAL_H */

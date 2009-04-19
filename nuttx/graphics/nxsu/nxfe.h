@@ -61,10 +61,7 @@
 
 /* Server state structure ***************************************************/
 
-/* This the the server 'front-end' state structure.  It is really the same
- * as the back-end state, but we wrap the back-end state so that we can add
- * things to the structure in the future
- */
+/* This the the server 'front-end' state structure */
 
 struct nxfe_state_s
 {
@@ -74,6 +71,10 @@ struct nxfe_state_s
    */
 
   struct nxbe_state_s be;
+
+  /* Event handling callbacks */
+
+  FAR const struct nx_callback_s *cb; /* Message handling callbacks */
 };
 
 /****************************************************************************
@@ -88,44 +89,9 @@ extern "C" {
 #define EXTERN extern
 #endif
 
-EXTERN const struct nx_callback_s g_bkgdcb;
-
 /****************************************************************************
  * Public Functions
  ****************************************************************************/
-
-/****************************************************************************
- * Name: nxfe_constructwindow
- *
- * Description:
- *   This function is the same a nx_openwindow EXCEPT that the client provides
- *   the window structure instance.  nx_constructwindow will initialize the
- *   the pre-allocated window structure for use by NX.  This function is
- *   provided in addition to nx_open window in order to support a kind of
- *   inheritance:  The caller's window structure may include extensions that
- *   are not visible to NX.
- *
- *   NOTE:  wnd must have been allocated using malloc() (or related allocators)
- *   Once provided to nxfe_constructwindow() that memory is owned and managed
- *   by NX.  On certain error conditions or when the window is closed, NX will
- *   free() the the window.
- *
- * Input Parameters:
- *   handle - The handle returned by nx_connect
- *   wnd    - The pre-allocated window structure.
- *   cb     - Callbacks used to process window events
- *   arg    - User provided value that will be returned with NX callbacks.
- *
- * Return:
- *   OK on success; ERROR on failure with errno set appropriately.  In the
- *   case of ERROR, NX will have dealloated the pre-allocated window.
- *
- ****************************************************************************/
-
-EXTERN int nxfe_constructwindow(NXHANDLE handle,
-                                FAR struct nxbe_window_s *wnd,
-                                FAR const struct nx_callback_s *cb,
-                                FAR void *arg);
 
 /****************************************************************************
  * Name: nxfe_redrawreq
@@ -166,16 +132,10 @@ EXTERN void nxsu_mouseinit(int x, int y);
  * Description:
  *   Report mouse position info to the specified window
  *
- * Input Parameters:
- *   wnd - The window to receive the mouse report
- *
- * Returned Value:
- *   0: Mouse report sent; >0: Mouse report not sent; <0: An error occurred
- *
  ****************************************************************************/
 
 #ifdef CONFIG_NX_MOUSE
-EXTERN int nxsu_mousereport(struct nxbe_window_s *wnd);
+EXTERN void nxsu_mousereport(struct nxbe_window_s *wnd);
 #endif
 
 #undef EXTERN

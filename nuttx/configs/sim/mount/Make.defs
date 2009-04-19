@@ -1,7 +1,7 @@
 ############################################################################
-# configs/sim/mount/Make.defs
+# configs/sim/Make.defs
 #
-#   Copyright (C) 2008 Gregory Nutt. All rights reserved.
+#   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
 #   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
 #
 # Redistribution and use in source and binary forms, with or without
@@ -52,7 +52,6 @@ ARCHSCRIPT		=
 
 CROSSDEV		=
 CC			= $(CROSSDEV)gcc
-CPP			= $(CROSSDEV)gcc -E
 LD			= $(CROSSDEV)ld
 AR			= $(CROSSDEV)ar rcs
 NM			= $(CROSSDEV)nm
@@ -61,7 +60,6 @@ OBJDUMP			= $(CROSSDEV)objdump
 
 CFLAGS			= $(ARCHWARNINGS) $(ARCHOPTIMIZATION) \
 			  $(ARCHCPUFLAGS) $(ARCHINCLUDES) $(ARCHDEFINES) -pipe
-CPPFLAGS		= $(ARCHINCLUDES) $(ARCHDEFINES)
 AFLAGS			= $(CFLAGS) -D__ASSEMBLY__
 
 OBJEXT			= .o
@@ -76,11 +74,6 @@ endif
 ifeq ("${CONFIG_DEBUG}","y")
   LDFLAGS		+= -g
 endif
-
-define PREPROCESS
-	@echo "CPP: $1->$2"
-	@$(CPP) $(CPPFLAGS) $1 -o $2
-endef
 
 define COMPILE
 	@echo "CC: $1"

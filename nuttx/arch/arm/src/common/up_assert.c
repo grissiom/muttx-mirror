@@ -1,7 +1,7 @@
-/****************************************************************************
+/************************************************************
  * common/up_assert.c
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,29 +31,25 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Included Files
- ****************************************************************************/
+ ************************************************************/
 
 #include <nuttx/config.h>
-
 #include <sys/types.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <debug.h>
-
 #include <nuttx/irq.h>
-#include <nuttx/arch.h>
-
 #include "up_arch.h"
 #include "os_internal.h"
 #include "up_internal.h"
 
-/****************************************************************************
+/************************************************************
  * Definitions
- ****************************************************************************/
+ ************************************************************/
 
 /* Output debug info if stack dump is selected -- even if 
  * debug is not selected.
@@ -64,17 +60,17 @@
 # define lldbg lib_lowprintf
 #endif
 
-/****************************************************************************
+/************************************************************
  * Private Data
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Private Functions
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Name: up_getsp
- ****************************************************************************/
+ ************************************************************/
 
 /* I don't know if the builtin to get SP is enabled */
 
@@ -89,41 +85,54 @@ static inline uint32 up_getsp(void)
   return sp;
 }
 
-/****************************************************************************
+/************************************************************
  * Name: up_stackdump
- ****************************************************************************/
+ ************************************************************/
 
 #ifdef CONFIG_ARCH_STACKDUMP
-static void up_stackdump(uint32 sp, uint32 stack_base)
+static void up_stackdump(void)
 {
-  uint32 stack ;
+  _TCB *rtcb        = (_TCB*)g_readytorun.head;
+  uint32 sp         = up_getsp();
+  uint32 stack_base;
+  uint32 stack_size;
 
-  for (stack = sp & ~0x1f; stack < stack_base; stack += 32)
+  if (rtcb->pid == 0)
     {
-      uint32 *ptr = (uint32*)stack;
-      lldbg("%08x: %08x %08x %08x %08x %08x %08x %08x %08x\n",
-             stack, ptr[0], ptr[1], ptr[2], ptr[3],
-             ptr[4], ptr[5], ptr[6], ptr[7]);
+      stack_base = g_heapbase - 4;
+      stack_size = CONFIG_PROC_STACK_SIZE;
     }
-}
-#else
-# define up_stackdump()
-#endif
+  else
+    {
+      stack_base = (uint32)rtcb->adj_stack_ptr;
+      stack_size = (uint32)rtcb->adj_stack_size;
+    }
 
-/****************************************************************************
- * Name: up_registerdump
- ****************************************************************************/
+  lldbg("stack_base: %08x\n", stack_base);
+  lldbg("stack_size: %08x\n", stack_size);
+  lldbg("sp:         %08x\n", sp);
 
-#ifdef CONFIG_ARCH_STACKDUMP
-static inline void up_registerdump(void)
-{
-  /* Are user registers available from interrupt processing? */
+  if (sp >= stack_base || sp < stack_base - stack_size)
+    {
+      lldbg("ERROR: Stack pointer is not within allocated stack\n");
+      return;
+    }
+  else
+    {
+      uint32 stack = sp & ~0x1f;
+
+      for (stack = sp & ~0x1f; stack < stack_base; stack += 32)
+        {
+          uint32 *ptr = (uint32*)stack;
+          lldbg("%08x: %08x %08x %08x %08x %08x %08x %08x %08x\n",
+                 stack, ptr[0], ptr[1], ptr[2], ptr[3],
+                 ptr[4], ptr[5], ptr[6], ptr[7]);
+        }
+    }
 
   if (current_regs)
     {
       int regs;
-
-      /* Yes.. dump the interrupt registers */
 
       for (regs = REG_R0; regs <= REG_R15; regs += 8)
         {
@@ -136,106 +145,12 @@ static inline void up_registerdump(void)
     }
 }
 #else
-# define up_registerdump()
+# define up_stackdump()
 #endif
 
-/****************************************************************************
- * Name: up_dumpstate
- ****************************************************************************/
-
-#ifdef CONFIG_ARCH_STACKDUMP
-static void up_dumpstate(void)
-{
-  _TCB *rtcb        = (_TCB*)g_readytorun.head;
-  uint32 sp         = up_getsp();
-  uint32 ustackbase;
-  uint32 ustacksize;
-#if CONFIG_ARCH_INTERRUPTSTACK > 3
-  uint32 istackbase;
-  uint32 istacksize;
-#endif
-
-  /* Get the limits on the user stack memory */
-
-  if (rtcb->pid == 0)
-    {
-      ustackbase = g_heapbase - 4;
-      ustacksize = CONFIG_IDLETHREAD_STACKSIZE;
-    }
-  else
-    {
-      ustackbase = (uint32)rtcb->adj_stack_ptr;
-      ustacksize = (uint32)rtcb->adj_stack_size;
-    }
-
-  /* Get the limits on the interrupt stack memory */
-
-#if CONFIG_ARCH_INTERRUPTSTACK > 3
-  istackbase = (uint32)&g_userstack;
-  istacksize = (CONFIG_ARCH_INTERRUPTSTACK & ~3) - 4;
-
-  /* Show interrupt stack info */
-
-  lldbg("sp:     %08x\n", sp);
-  lldbg("IRQ stack:\n");
-  lldbg("  base: %08x\n", istackbase);
-  lldbg("  size: %08x\n", istacksize);
-
-  /* Does the current stack pointer lie within the interrupt
-   * stack?
-   */
-
-  if (sp <= istackbase && sp > istackbase - istacksize)
-    {
-      /* Yes.. dump the interrupt stack */
-
-      up_stackdump(sp, istackbase);
-
-      /* Extract the user stack pointer which should lie
-       * at the base of the interrupt stack.
-       */
-
-      sp = g_userstack;
-      lldbg("sp:     %08x\n", sp);
-    }
-
-  /* Show user stack info */
-
-  lldbg("User stack:\n");
-  lldbg("  base: %08x\n", ustackbase);
-  lldbg("  size: %08x\n", ustacksize);
-#else
-  lldbg("sp:         %08x\n", sp);
-  lldbg("stack base: %08x\n", ustackbase);
-  lldbg("stack size: %08x\n", ustacksize);
-#endif
-
-  /* Dump the user stack if the stack pointer lies within the allocated user
-   * stack memory.
-   */
-
-  if (sp > ustackbase || sp <= ustackbase - ustacksize)
-    {
-#if !defined(CONFIG_ARCH_INTERRUPTSTACK) || CONFIG_ARCH_INTERRUPTSTACK < 4
-      lldbg("ERROR: Stack pointer is not within allocated stack\n");
-#endif
-    }
-  else
-    {
-      up_stackdump(sp, ustackbase);
-    }
-
-  /* Then dump the registers (if available) */
-
-  up_registerdump();
-}
-#else
-# define up_dumpstate()
-#endif
-
-/****************************************************************************
+/************************************************************
  * Name: _up_assert
- ****************************************************************************/
+ ************************************************************/
 
 static void _up_assert(int errorcode) /* __attribute__ ((noreturn)) */
 {
@@ -248,9 +163,9 @@ static void _up_assert(int errorcode) /* __attribute__ ((noreturn)) */
           {
 #ifdef CONFIG_ARCH_LEDS
             up_ledon(LED_PANIC);
-            up_mdelay(250);
+            up_delay(250);
             up_ledoff(LED_PANIC);
-            up_mdelay(250);
+            up_delay(250);
 #endif
           }
     }
@@ -260,17 +175,17 @@ static void _up_assert(int errorcode) /* __attribute__ ((noreturn)) */
     }
 }
 
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
+/************************************************************
+ * Public Funtions
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Name: up_assert
- ****************************************************************************/
+ ************************************************************/
 
 void up_assert(const ubyte *filename, int lineno)
 {
-#if CONFIG_TASK_NAME_SIZE > 0 && defined(CONFIG_DEBUG)
+#if CONFIG_TASK_NAME_SIZE > 0
   _TCB *rtcb = (_TCB*)g_readytorun.head;
 #endif
 
@@ -282,17 +197,17 @@ void up_assert(const ubyte *filename, int lineno)
   lldbg("Assertion failed at file:%s line: %d\n",
         filename, lineno);
 #endif
-  up_dumpstate();
+  up_stackdump();
   _up_assert(EXIT_FAILURE);
 }
 
-/****************************************************************************
+/************************************************************
  * Name: up_assert_code
- ****************************************************************************/
+ ************************************************************/
 
 void up_assert_code(const ubyte *filename, int lineno, int errorcode)
 {
-#if CONFIG_TASK_NAME_SIZE > 0 && defined(CONFIG_DEBUG)
+#if CONFIG_TASK_NAME_SIZE > 0
   _TCB *rtcb = (_TCB*)g_readytorun.head;
 #endif
 
@@ -304,6 +219,6 @@ void up_assert_code(const ubyte *filename, int lineno, int errorcode)
   lldbg("Assertion failed at file:%s line: %d error code: %d\n",
         filename, lineno, errorcode);
 #endif
-  up_dumpstate();
+  up_stackdump();
   _up_assert(errorcode);
 }

@@ -108,25 +108,19 @@ static inline void nx_disconnected(FAR struct nxfe_conn_s *conn)
  *
  * Description:
  *   The client code must call this function periodically to process
- *   incoming messages from the server.  If CONFIG_NX_BLOCKING is defined,
- *   then this function not return until a server message is received.
- *
- *   When CONFIG_NX_BLOCKING is not defined, the client must exercise
- *   caution in the looping to assure that it does not eat up all of
- *   the CPU bandwidth calling nx_eventhandler repeatedly.  nx_eventnotify
- *   may be called to get a signal event whenever a new incoming server
- *   event is avaiable.
+ *   incoming messages from the server.
  *
  * Input Parameters:
  *   handle - the handle returned by nx_connect
  *
  * Return:
- *     OK: No errors occurred.  If CONFIG_NX_BLOCKING is defined, then
- *         one or more server message was processed.
- *  ERROR: An error occurred and errno has been set appropriately.  Of
- *         particular interest, it will return errno == EHOSTDOWN when the
- *         server is disconnected.  After that event, the handle can no
- *         longer be used.
+ *   >0: The length of the message received in msgbuffer
+ *    0: No message was received
+ *   <0: An error occurred and errno has been set appropriately
+ *
+ *   Of particular interest, it will return errno == EHOSTDOWN when the
+ *   server is disconnected.  After that event, the handle can not longer
+ *   be used.
  *
  ****************************************************************************/
 
@@ -134,7 +128,6 @@ int nx_eventhandler(NXHANDLE handle)
 {
   FAR struct nxfe_conn_s *conn = (FAR struct nxfe_conn_s *)handle;
   struct nxsvrmsg_s      *msg;
-  struct nxbe_window_s   *wnd;
   ubyte                   buffer[NX_MXCLIMSGLEN];
   int                     nbytes;
 
@@ -174,72 +167,55 @@ int nx_eventhandler(NXHANDLE handle)
   /* Dispatch the message appropriately */
 
   msg = (struct nxsvrmsg_s *)buffer;
-  gvdbg("Received msgid=%d\n", msg->msgid);
   switch (msg->msgid)
     {
-    case NX_CLIMSG_CONNECTED:
+    case NX_SVRMSG_CONNECT:
       nx_connected(conn);
       break;
 
-    case NX_CLIMSG_DISCONNECTED:
+    case NX_SVRMSG_DISCONNECT:
       nx_disconnected(conn);
       errno = EHOSTDOWN;
       return ERROR;
 
     case NX_CLIMSG_REDRAW:
-      {
-        FAR struct nxclimsg_redraw_s *redraw = (FAR struct nxclimsg_redraw_s *)buffer;
-        wnd = redraw->wnd;
-        DEBUGASSERT(wnd);
-        if (wnd->cb->redraw)
-          {
-            wnd->cb->redraw((NXWINDOW)wnd, &redraw->rect, redraw->more, wnd->arg);
-          }
-      }
+      if (conn->cb->redraw)
+        {
+          FAR struct nxclimsg_redraw_s *redraw = (FAR struct nxclimsg_redraw_s *)buffer;
+          conn->cb->redraw((NXWINDOW)redraw->wnd, &redraw->rect, redraw->more);
+        }
       break;
 
     case NX_CLIMSG_NEWPOSITION:
-      {
-        FAR struct nxclimsg_newposition_s *postn = (FAR struct nxclimsg_newposition_s *)buffer;
-        wnd = postn->wnd;
-        DEBUGASSERT(wnd);
-        if (wnd->cb->position)
-          {
-            wnd->cb->position((NXWINDOW)wnd, &postn->size, &postn->pos, &postn->bounds, wnd->arg);
-          }
-      }
+      if (conn->cb->position)
+        {
+          FAR struct nxclimsg_newposition_s *postn = (FAR struct nxclimsg_newposition_s *)buffer;
+          conn->cb->position((NXWINDOW)postn->wnd, &postn->size, &postn->pos);
+        }
       break;
 
-#ifdef CONFIG_NX_MOUSE
+#ifdef CONFIG_NX_KBD
     case NX_CLIMSG_MOUSEIN:
-      {
-        FAR struct nxclimsg_mousein_s *mouse = (FAR struct nxclimsg_mousein_s *)buffer;
-        wnd = mouse->wnd;
-        DEBUGASSERT(wnd);
-        if (wnd->cb->mousein)
-          {
-            wnd->cb->mousein((NXWINDOW)wnd, &mouse->pos, mouse->buttons, wnd->arg);
-          }
+      if (conn->cb->mousein)
+        {
+          FAR struct nxclimsg_mousein_s *mouse = (FAR struct nxclimsg_mousein_s *)buffer;
+          conn->cb->mousein((NXWINDOW)mouse->wnd, &mouse->pos, mouse->buttons);
         }
       break;
 #endif
 
 #ifdef CONFIG_NX_KBD
     case NX_CLIMSG_KBDIN:
-      {
-        FAR struct nxclimsg_kbdin_s *kbd = (FAR struct nxclimsg_kbdin_s *)buffer;
-        wnd = kbd->wnd;
-         DEBUGASSERT(wnd);
-        if (wnd->cb->kbdin)
-          {
-            wnd->cb->kbdin((NXWINDOW)wnd, kbd->nch, kbd->ch, wnd->arg);
-          }
+      if (conn->cb->kbdin)
+        {
+          FAR struct nxclimsg_kbdin_s *kbd = (FAR struct nxclimsg_kbdin_s *)buffer;
+          conn->cb->kbdin((NXWINDOW)kbd->wnd, kbd->nch, kbd->ch);
         }
       break;
 #endif
 
     default:
-      gdbg("Unrecognized message opcode: %d\n", ((FAR struct nxsvrmsg_s *)buffer)->msgid);
+      gdbg("Unrecogized message opcode: %d\n", (FAR struct nxsvrmsg_s *)buffer->msgid);
       break;
     }
 

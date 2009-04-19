@@ -77,8 +77,7 @@
  * values specified in  */
 
 #define RFNEXT_MODEMASK    7    /* Bits 0-2: Mode; bit 3: Executable */
-#define RFNEXT_ALLMODEMASK 15   /* Bits 0-3: All mode bits */
-#define RFNEXT_OFFSETMASK (~15) /* Bits n-3: Offset to next entry */
+#define RFNEXT_OFFSETMASK  (~7) /* Bits n-3: Offset to next entry */
 
 #define RFNEXT_HARDLINK    0    /* rf_info = Link destination file header */
 #define RFNEXT_DIRECTORY   1    /* rf_info = First file's header */
@@ -112,7 +111,6 @@
 
 #define SEC_NDXMASK(r)       ((r)->rm_hwsectorsize - 1)
 #define SEC_NSECTORS(r,o)    ((o) / (r)->rm_hwsectorsize)
-#define SEC_ALIGN(r,o)       ((o) & ~SEC_NDXMASK(r))
 
 /* Maximum numbr of links that will be followed before we decide that there
  * is a problem.
@@ -142,8 +140,7 @@ struct romfs_mountpt_s
   uint32   rm_hwnsectors;           /* HW: The number of sectors reported by the hardware */
   uint32   rm_volsize;              /* Size of the ROMFS volume */
   uint32   rm_cachesector;          /* Current sector in the rm_buffer */
-  ubyte   *rm_xipbase;              /* Base address of directly accessible media */
-  ubyte   *rm_buffer;               /* Device sector buffer, allocated if rm_xipbase==0 */
+  ubyte   *rm_buffer;               /* Device sector buffer */
 };
 
 /* This structure represents on open file under the mountpoint.  An instance
@@ -155,10 +152,11 @@ struct romfs_file_s
 {
   struct romfs_file_s *rf_next;     /* Retained in a singly linked list */
   boolean  rf_open;                 /* TRUE: The file is (still) open */
-  uint32   rf_startoffset;          /* Offset to the start of the file data */
+  uint32   rf_diroffset;            /* Offset to the parent directory entry */
+  uint32   rf_startoffset;          /* Offset to the start of the file */
   uint32   rf_size;                 /* Size of the file in bytes */
   uint32   rf_cachesector;          /* Current sector in the rf_buffer */
-  ubyte   *rf_buffer;               /* File sector buffer, allocated if rm_xipbase==0 */
+  ubyte   *rf_buffer;               /* File sector buffer */
 };
 
 /* This structure is used internally for describing the result of
@@ -199,24 +197,21 @@ extern "C" {
 EXTERN void romfs_semtake(struct romfs_mountpt_s *rm);
 EXTERN void romfs_semgive(struct romfs_mountpt_s *rm);
 EXTERN int  romfs_hwread(struct romfs_mountpt_s *rm, ubyte *buffer,
-                  uint32 sector, unsigned int nsectors);
+                         uint32 sector, unsigned int nsectors);
+EXTERN int  romfs_devcacheread(struct romfs_mountpt_s *rm, uint32 sector);
 EXTERN int  romfs_filecacheread(struct romfs_mountpt_s *rm,
-                  struct romfs_file_s *rf, uint32 sector);
-EXTERN int  romfs_hwconfigure(struct romfs_mountpt_s *rm);
-EXTERN int  romfs_fsconfigure(struct romfs_mountpt_s *rm);
-EXTERN int  romfs_fileconfigure(struct romfs_mountpt_s *rm,
-                  struct romfs_file_s *rf);
+                                struct romfs_file_s *rf, uint32 sector);
+EXTERN int  romfs_getgeometry(struct romfs_mountpt_s *rm);
+EXTERN int  romfs_mount(struct romfs_mountpt_s *rm);
 EXTERN int  romfs_checkmount(struct romfs_mountpt_s *rm);
 EXTERN int  romfs_finddirentry(struct romfs_mountpt_s *rm,
-                  struct romfs_dirinfo_s *dirinfo,
-                  const char *path);
+                               struct romfs_dirinfo_s *dirinfo,
+                               const char *path);
 EXTERN int  romfs_parsedirentry(struct romfs_mountpt_s *rm,
-                  uint32 offset, uint32 *poffset, uint32 *pnext,
-                  uint32 *pinfo, uint32 *psize);
+                                uint32 offset, uint32 *poffset, uint32 *pnext,
+                                uint32 *pinfo, uint32 *psize);
 EXTERN int  romfs_parsefilename(struct romfs_mountpt_s *rm, uint32 offset,
-                  char *pname);
-EXTERN int  romfs_datastart(struct romfs_mountpt_s *rm, uint32 offset,
-                  uint32 *start);
+                                char *pname);
 
 #undef EXTERN
 #if defined(__cplusplus)

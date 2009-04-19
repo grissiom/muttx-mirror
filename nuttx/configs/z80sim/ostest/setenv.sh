@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 # z80sim/setenv.sh
 #
 #   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.

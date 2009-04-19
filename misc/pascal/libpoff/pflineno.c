@@ -49,8 +49,6 @@
 #include "perr.h"      /* error() */
 #include "pofflib.h"   /* POFF library interface */
 
-poffLibLineNumber_t
-
 /**********************************************************************
  * Definitions
  **********************************************************************/
@@ -141,7 +139,7 @@ static void poffAddLineNumberToTable(poffLibLineNumber_t *lineno)
 
   /* Save the line number information in the line number table */
 
-  memcpy(&lineNumberTable[nLineNumbers], lineno, sizeof(poffLibLineNumber_t));
+  lineNumberTable[nLineNumbers] = *lineno;
   nLineNumbers++;
 }
 

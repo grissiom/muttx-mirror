@@ -1,7 +1,7 @@
-/****************************************************************************
- * arch/arm/src/common/up_initialize.c
+/************************************************************
+ * common/up_initialize.c
  *
- *   Copyright (C) 2007-2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -31,98 +31,57 @@
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
+/************************************************************
  * Included Files
- ****************************************************************************/
+ ************************************************************/
 
 #include <nuttx/config.h>
-
 #include <sys/types.h>
 #include <debug.h>
-
 #include <nuttx/arch.h>
 #include <nuttx/fs.h>
-
 #include "up_arch.h"
 #include "up_internal.h"
 
-/****************************************************************************
- * Definitions
- ****************************************************************************/
-
-/* Define to enable timing loop calibration */
-
-#undef CONFIG_ARM_CALIBRATION
-
-/****************************************************************************
+/************************************************************
  * Private Types
- ****************************************************************************/
+ ************************************************************/
 
-/****************************************************************************
- * Private Functions
- ****************************************************************************/
+/************************************************************
+ * Private Function Prototypes
+ ************************************************************/
 
-/****************************************************************************
- * Name: up_calibratedelay
- *
- * Description:
- *   Delay loops are provided for short timing loops.  This function, if
- *   enabled, will just wait for 100 seconds.  Using a stopwatch, you can
- *   can then determine if the timing loops are properly calibrated.
- *
- ****************************************************************************/
+/************************************************************
+ * Global Functions
+ ************************************************************/
 
-#if defined(CONFIG_ARM_CALIBRATION) & defined(CONFIG_DEBUG)
-static void up_calibratedelay(void)
-{
-  int i;
-  slldbg("Beginning 100s delay\n");
-  for (i = 0; i < 100; i++)
-    {
-      up_mdelay(1000);
-    }
-  slldbg("End 100s delay\n");
-}
-#else
-# define up_calibratedelay()
-#endif
-
-/****************************************************************************
- * Public Functions
- ****************************************************************************/
-
-/****************************************************************************
+/************************************************************
  * Name: up_initialize
  *
  * Description:
- *   up_initialize will be called once during OS initialization after the
- *   basic OS services have been initialized.  The architecture specific
- *   details of initializing the OS will be handled here.  Such things as
- *   setting up interrupt service routines, starting the clock, and
- *   registering device drivers are some of the things that are different
- *   for each processor and hardware platform.
+ *   up_initialize will be called once during OS
+ *   initialization after the basic OS services have been
+ *   initialized.  The architecture specific details of
+ *   initializing the OS will be handled here.  Such things as
+ *   setting up interrupt service routines, starting the
+ *   clock, and registering device drivers are some of the
+ *   things that are different for each processor and hardware
+ *   platform.
  *
- *   up_initialize is called after the OS initialized but before the user
- *   initialization logic has been started and before the libraries have
- *   been initialized.  OS services and driver services are available.
+ *   up_initialize is called after the OS initialized but
+ *   before the init process has been started and before the
+ *   libraries have been initialized.  OS services and driver
+ *   services are available.
  *
- ****************************************************************************/
+ ************************************************************/
 
 void up_initialize(void)
 {
   /* Initialize global variables */
 
   current_regs = NULL;
-
-  /* Calibrate the timing loop */
-
-  up_calibratedelay();
-
-  /* Add any extra memory fragments to the memory manager */
-
-  up_addregion();
 
   /* Initialize the interrupt subsystem */
 
@@ -136,25 +95,10 @@ void up_initialize(void)
 
   /* Register devices */
 
-#if CONFIG_NFILE_DESCRIPTORS > 0
   devnull_register();   /* Standard /dev/null */
-#endif
 
   /* Initialize the serial device driver */
 
-#ifdef CONFIG_USE_SERIALDRIVER
   up_serialinit();
-#elif defined(CONFIG_DEV_LOWCONSOLE)
-  lowconsole_init();
-#endif
-
-  /* Initialize the netwok */
-
-  up_netinitialize();
-
-  /* Initializ USB */
-
-  up_usbinitialize();
-
   up_ledon(LED_IRQSENABLED);
 }

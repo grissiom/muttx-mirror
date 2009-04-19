@@ -1,7 +1,7 @@
 /********************************************************************************
- * arch/arm/src/lpc214x/lpc214x_decodeirq.c
+ * lpc214x/lpc214x_decodeirq.c
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -43,18 +43,12 @@
 #include <nuttx/arch.h>
 #include <assert.h>
 #include <debug.h>
-
 #include "up_arch.h"
 #include "os_internal.h"
 #include "up_internal.h"
-#include "lpc214x_vic.h"
 
 /********************************************************************************
  * Definitions
- ********************************************************************************/
-
-/********************************************************************************
- * Private Types
  ********************************************************************************/
 
 /********************************************************************************
@@ -65,48 +59,15 @@
  * Private Data
  ********************************************************************************/
 
-/* This array maps 4 bits into the bit number of the lowest bit that it set */
-
-#ifndef CONFIG_SUPPRESS_INTERRUPTS
-static uint8 g_nibblemap[16] = { 0, 0, 1, 0, 2, 0, 1, 0, 3, 0, 1, 0, 2, 0, 1, 0 };
-#endif
-
 /********************************************************************************
  * Private Functions
  ********************************************************************************/
 
 /********************************************************************************
- * Public Funstions
+ * Public Funtions
  ********************************************************************************/
 
-/********************************************************************************
- * up_decodeirq() and/or lpc214x_decodeirq()
- *
- * Description:
- *   The vectored interrupt controller (VIC) takes 32 interrupt request inputs
- *   and programmatically assigns them into 3 categories:  FIQ, vectored IRQ,
- *   and non-vectored IRQ.
- *
- *   - FIQs have the highest priority.  There is a single FIQ vector, but multiple
- *     interrupt sources can be ORed to this FIQ vector.
- *
- *   - Vectored IRQs have the middle priority.  Any 16 of the 32 interrupt sources
- *     can be assigned to vectored IRQs.
- *
- *   - Non-vectored IRQs have the lowest priority.
- *
- *   The general flow of IRQ processing is to simply read the VIC vector address
- *   and jump to the address of the vector provided in the register.  The VIC will
- *   provide the address of the highest priority vectored IRQ.  If a non-vectored
- *   IRQ is requesting, the address of a default handler is provided.
- *
- ********************************************************************************/
-
-#ifndef CONFIG_VECTORED_INTERRUPTS
-void up_decodeirq(uint32 *regs)
-#else
-static void lpc214x_decodeirq( uint32 *regs)
-#endif
+void up_decodeirq(uint32* regs)
 {
 #ifdef CONFIG_SUPPRESS_INTERRUPTS
   lib_lowprintf("Unexpected IRQ\n");
@@ -114,34 +75,19 @@ static void lpc214x_decodeirq( uint32 *regs)
   PANIC(OSERR_ERREXCEPTION);
 #else
 
-  /* Decode the interrupt. We have to do this by search for the lowest numbered
-   * non-zero bit in the interrupt status register.
-   */
+  /* Decode the interrupt.  First, fetch the interrupt id register. */
 
-  uint32 pending = vic_getreg(LPC214X_VIC_IRQSTATUS_OFFSET) & 0x007fffff;
-  unsigned int nibble;
-  unsigned int irq_base;
-  unsigned int irq = NR_IRQS;
+  int irq = 0;
+#warning "Need to decode the interrupt here"
 
-  /* Search in groups of four bits.  For 22 sources, this is at most six
-   * times through the loop.
-   */
+  /* Verify that the resulting IRQ number is valie */
 
-  for (nibble = pending & 0x0f, irq_base = 0;
-       pending && irq_base < NR_IRQS;
-       pending >>= 4, nibble = pending & 0x0f, irq_base += 4)
+  if ((unsigned)irq < NR_IRQS)
     {
-      if (nibble)
-        {
-          irq = irq_base + g_nibblemap[nibble];
-          break;
-        }
-    }
+      /* Mask and acknowledge the interrupt */
 
-  /* Verify that the resulting IRQ number is valid */
+      up_maskack_irq(irq);
 
-  if (irq < NR_IRQS)
-    {
       /* Current regs non-zero indicates that we are processing an interrupt;
        * current_regs is also used to manage interrupt level context switches.
        */
@@ -155,14 +101,12 @@ static void lpc214x_decodeirq( uint32 *regs)
       /* Indicate that we are no long in an interrupt handler */
 
       current_regs = NULL;
+
+      /* Unmask the last interrupt (global interrupts are still
+       * disabled.
+       */
+
+      up_enable_irq(irq);
     }
 #endif
 }
-
-#ifdef CONFIG_VECTORED_INTERRUPTS
-void up_decodeirq(uint32 *regs)
-{
-  vic_vector_t vector = (vic_vector)vic_getreg(LPC214X_VIC_VECTADDR_OFFSET);
-  vector(regs);
-}
-#endif

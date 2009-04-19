@@ -81,10 +81,10 @@ typedef long sint32;
 typedef unsigned long uint32;
 
 /* This is the size of the interrupt state save returned by irqsave().
- * It holds the AF regiser pair + a zero pad byte
+ * It holds the contents of the interrupt vector address
  */
 
-typedef uint24 irqstate_t;
+typedef ubyte irqstate_t;
 
 #endif /* __ASSEMBLY__ */
 

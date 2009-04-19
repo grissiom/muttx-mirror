@@ -1,7 +1,7 @@
 /****************************************************************************
  * fs_fat32util.c
  *
- *   Copyright (C) 2007, 2008, 2009 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * References:
@@ -44,7 +44,6 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
 #include <sys/types.h>
 #include <stdlib.h>
 #include <string.h>
@@ -266,7 +265,7 @@ static int fat_checkfsinfo(struct fat_mountpt_s *fs)
 
   if (FSI_GETLEADSIG(fs->fs_buffer) == 0x41615252  &&
       FSI_GETSTRUCTSIG(fs->fs_buffer) == 0x61417272 &&
-      FSI_GETTRAILSIG(fs->fs_buffer) == BOOT_SIGNATURE32)
+      FSI_GETTRAILSIG(fs->fs_buffer) == 0xaa550000)
     {
       fs->fs_fsinextfree  = FSI_GETFREECOUNT(fs->fs_buffer);
       fs->fs_fsifreecount = FSI_GETNXTFREE(fs->fs_buffer);
@@ -285,7 +284,7 @@ static int fat_checkfsinfo(struct fat_mountpt_s *fs)
 static int fat_checkbootrecord(struct fat_mountpt_s *fs)
 {
   uint32  ndatasectors;
-  uint32  ntotalfatsects;
+  uint32  fatsize;
   uint16  rootdirsectors = 0;
   boolean notfat32 = FALSE;
 
@@ -296,7 +295,7 @@ static int fat_checkbootrecord(struct fat_mountpt_s *fs)
    * match the reported hardware sector size.
    */
 
-  if (MBR_GETSIGNATURE(fs->fs_buffer) != BOOT_SIGNATURE16 ||
+  if (MBR_GETSIGNATURE(fs->fs_buffer) != 0xaa55 ||
       MBR_GETBYTESPERSEC(fs->fs_buffer) != fs->fs_hwsectorsize)
     {
       return -ENODEV;
@@ -304,34 +303,33 @@ static int fat_checkbootrecord(struct fat_mountpt_s *fs)
 
   /* Verify the FAT32 file system type. The determination of the file
    * system type is based on the number of clusters on the volume:  FAT12
-   * volume has <= FAT_MAXCLUST12 (4084) clusters, a FAT16 volume has <=
-   * FAT_MINCLUST16 (microsfoft says < 65,525) clusters, and any larger
-   * is FAT32.
+   * volume has < 4085 cluseter, a FAT16 volume has fewer than 65,525
+   * clusters, and any larger is FAT32.
    *
    * Get the number of 32-bit directory entries in root directory (zero
-   * for FAT32).
+   * for FAT32.
    */
 
   fs->fs_rootentcnt = MBR_GETROOTENTCNT(fs->fs_buffer);
   if (fs->fs_rootentcnt != 0)
-    {
+  {
       notfat32       = TRUE; /* Must be zero for FAT32 */
       rootdirsectors = (32 * fs->fs_rootentcnt  + fs->fs_hwsectorsize - 1) / fs->fs_hwsectorsize;
-    }
+  }
 
   /* Determine the number of sectors in a FAT. */
 
-  fs->fs_nfatsects = MBR_GETFATSZ16(fs->fs_buffer); /* Should be zero */
-  if (fs->fs_nfatsects)
+  fs->fs_fatsize = MBR_GETFATSZ16(fs->fs_buffer); /* Should be zero */
+  if (fs->fs_fatsize)
     {
       notfat32 = TRUE; /* Must be zero for FAT32 */
     }
   else
     {
-      fs->fs_nfatsects = MBR_GETFATSZ32(fs->fs_buffer);
+      fs->fs_fatsize = MBR_GETFATSZ32(fs->fs_buffer);
     }
 
-  if (!fs->fs_nfatsects || fs->fs_nfatsects >= fs->fs_hwnsectors)
+  if (!fs->fs_fatsize || fs->fs_fatsize >= fs->fs_hwnsectors)
     {
       return -ENODEV;
     }
@@ -364,11 +362,11 @@ static int fat_checkbootrecord(struct fat_mountpt_s *fs)
   /* Get the number of FATs. This is probably two but could have other values */
 
   fs->fs_fatnumfats = MBR_GETNUMFATS(fs->fs_buffer);
-  ntotalfatsects = fs->fs_fatnumfats * fs->fs_nfatsects;
+  fatsize = fs->fs_fatnumfats * fs->fs_fatsize;
 
   /* Get the total number of data sectors */
 
-  ndatasectors = fs->fs_fattotsec - fs->fs_fatresvdseccount - ntotalfatsects - rootdirsectors;
+  ndatasectors = fs->fs_fattotsec - fs->fs_fatresvdseccount - fatsize - rootdirsectors;
   if (ndatasectors > fs->fs_hwnsectors)
     {
       return -ENODEV;
@@ -384,12 +382,12 @@ static int fat_checkbootrecord(struct fat_mountpt_s *fs)
 
   /* Finally, the test: */
 
-  if (fs->fs_nclusters <= FAT_MAXCLUST12)
+  if (fs->fs_nclusters < 4085)
     {
       fs->fs_fsinfo = 0;
       fs->fs_type   = FSTYPE_FAT12;
     }
-  else if (fs->fs_nclusters <= FAT_MAXCLUST16)
+  else if (fs->fs_nclusters < 65525)
     {
       fs->fs_fsinfo = 0;
       fs->fs_type   = FSTYPE_FAT16;
@@ -416,10 +414,10 @@ static int fat_checkbootrecord(struct fat_mountpt_s *fs)
     }
   else
     {
-      fs->fs_rootbase = fs->fs_fatbase + ntotalfatsects; 
+      fs->fs_rootbase = fs->fs_fatbase + fatsize; 
     }
 
-  fs->fs_database     = fs->fs_fatbase + ntotalfatsects + fs->fs_rootentcnt / DIRSEC_NDIRS(fs);
+  fs->fs_database     = fs->fs_fatbase + fatsize + fs->fs_rootentcnt / DIRSEC_NDIRS(fs);
   fs->fs_fsifreecount = 0xffffffff;
 
   return OK;
@@ -549,9 +547,7 @@ void fat_semgive(struct fat_mountpt_s *fs)
 
 uint32 fat_systime2fattime(void)
 {
-#ifdef CONFIG_CPP_HAVE_WARNING
-#  warning "Time not implemented"
-#endif
+#warning "Time not implemented"
     return 0;
 }
 
@@ -573,9 +569,7 @@ uint32 fat_systime2fattime(void)
 
 time_t fat_fattime2systime(uint16 fattime, uint16 fatdate)
 {
-#ifdef CONFIG_CPP_HAVE_WARNING
-#  warning "Time not implemented"
-#endif
+#warning "Time not implemented"
     return 0;
 }
 
@@ -653,38 +647,37 @@ int fat_mount(struct fat_mountpt_s *fs, boolean writeable)
        * partition, however.  Assume it is a partition and get the offset
        * into the partition table.  This table is at offset MBR_TABLE and is
        * indexed by 16x the partition number.  Here we support only
-       * partition 0.
-       *
-       * Check if the partition exists and, if so, get the bootsector for that
+       * parition 0.
+       */
+
+      ubyte *partition = &fs->fs_buffer[MBR_TABLE + 0];
+
+      /* Check if the partition exists and, if so, get the bootsector for that
        * partition and see if we can find the boot record there.
        */
  
-      if (PART1_GETTYPE(fs->fs_buffer) == 0)
+      if (partition[4])
         {
-          fdbg("No MBR or partition\n");
-          goto errout_with_buffer;
-        }
+          /* There appears to be a partition, get the sector number of the
+           * partition (LBA)
+           */
 
-      /* There appears to be a partition, get the sector number of the
-       * partition (LBA)
-       */
+          fs->fs_fatbase = MBR_GETPARTSECTOR(&partition[8]);
 
-      fs->fs_fatbase = PART1_GETSTARTSECTOR(fs->fs_buffer);
+          /* Read the new candidate boot sector */
 
-      /* Read the new candidate boot sector */
+          ret = fat_hwread(fs, fs->fs_buffer, fs->fs_fatbase, 1);
+          if (ret < 0)
+          {
+              goto errout_with_buffer;
+          }
 
-      ret = fat_hwread(fs, fs->fs_buffer, fs->fs_fatbase, 1);
-      if (ret < 0)
-        {
-          goto errout_with_buffer;
-        }
+          /* Check if this is a boot record */
 
-      /* Check if this is a boot record */
-
-      if (fat_checkbootrecord(fs) != OK)
-        {
-          fdbg("No valid MBR\n");
-          goto errout_with_buffer;
+          if (fat_checkbootrecord(fs) != OK)
+            {
+              goto errout_with_buffer;
+            }
         }
     }
 
@@ -714,7 +707,7 @@ int fat_mount(struct fat_mountpt_s *fs, boolean writeable)
   fdbg("\t    data sector:     %d\n", fs->fs_database);
   fdbg("\t    FSINFO sector:   %d\n", fs->fs_fsinfo);
   fdbg("\t    Num FATs:        %d\n", fs->fs_fatnumfats);
-  fdbg("\t    FAT sectors:     %d\n", fs->fs_nfatsects);
+  fdbg("\t    FAT size:        %d\n", fs->fs_fatsize);
   fdbg("\t    sectors/cluster: %d\n", fs->fs_fatsecperclus);
   fdbg("\t    max clusters:    %d\n", fs->fs_nclusters);
   fdbg("\tFSI free count       %d\n", fs->fs_fsifreecount);
@@ -864,7 +857,7 @@ ssize_t fat_cluster2sector(struct fat_mountpt_s *fs,  uint32 cluster )
 /****************************************************************************
  * Name: fat_getcluster
  *
- * Desciption: Get the next cluster start from the FAT.
+ * Desciption: Get the cluster start sector into the FAT.
  *
  * Return:  <0: error, 0:cluster unassigned, >=0: start sector of cluster
  *
@@ -886,7 +879,7 @@ ssize_t fat_getcluster(struct fat_mountpt_s *fs, uint32 clusterno)
             {
               size_t       fatsector;
               unsigned int fatoffset;
-              unsigned int cluster;
+              unsigned int startsector;
               unsigned int fatindex;
 
               /* FAT12 is more complex because it has 12-bits (1.5 bytes)
@@ -901,14 +894,13 @@ ssize_t fat_getcluster(struct fat_mountpt_s *fs, uint32 clusterno)
               if (fat_fscacheread(fs, fatsector) < 0)
                 {
                   /* Read error */
-
                   break;
                 }
 
               /* Get the first, LS byte of the cluster from the FAT */
 
-              fatindex = fatoffset & SEC_NDXMASK(fs);
-              cluster  = fs->fs_buffer[fatindex];
+              fatindex    = fatoffset & SEC_NDXMASK(fs);
+              startsector = fs->fs_buffer[fatindex];
 
               /* With FAT12, the second byte of the cluster number may lie in
                * a different sector than the first byte.
@@ -923,7 +915,6 @@ ssize_t fat_getcluster(struct fat_mountpt_s *fs, uint32 clusterno)
                   if (fat_fscacheread(fs, fatsector) < 0)
                     {
                       /* Read error */
-
                       break;
                     }
                 }
@@ -933,23 +924,21 @@ ssize_t fat_getcluster(struct fat_mountpt_s *fs, uint32 clusterno)
                * on the fact that the byte stream is little-endian.
                */
 
-              cluster |= (unsigned int)fs->fs_buffer[fatindex] << 8;
+              startsector |= (unsigned int)fs->fs_buffer[fatindex] << 8;
 
               /* Now, pick out the correct 12 bit cluster start sector value */
 
               if ((clusterno & 1) != 0)
                 {
                   /* Odd.. take the MS 12-bits */
-
-                  cluster >>= 4;
+                  startsector >>= 4;
                 }
               else
                 {
                   /* Even.. take the LS 12-bits */
-
-                  cluster &= 0x0fff;
+                  startsector &= 0x0fff;
                 }
-              return cluster;
+              return startsector;
             }
 
           case FSTYPE_FAT16 :
@@ -977,7 +966,7 @@ ssize_t fat_getcluster(struct fat_mountpt_s *fs, uint32 clusterno)
                   /* Read error */
                   break;
                 }
-              return FAT_GETFAT32(fs->fs_buffer, fatindex) & 0x0fffffff;
+              return FAT_GETFAT16(fs->fs_buffer, fatindex) & 0x0fffffff;
             }
           default:
               break;
@@ -992,11 +981,11 @@ ssize_t fat_getcluster(struct fat_mountpt_s *fs, uint32 clusterno)
 /****************************************************************************
  * Name: fat_putcluster
  *
- * Desciption: Write a new cluster into the FAT
+ * Desciption: Write a new cluster start sector into the FAT
  *
  ****************************************************************************/
 
-int fat_putcluster(struct fat_mountpt_s *fs, uint32 clusterno, size_t nextcluster)
+int fat_putcluster(struct fat_mountpt_s *fs, uint32 clusterno, size_t startsector)
 {
   /* Verify that the cluster number is within range.  Zero erases the cluster. */
 
@@ -1027,26 +1016,21 @@ int fat_putcluster(struct fat_mountpt_s *fs, uint32 clusterno, size_t nextcluste
               if (fat_fscacheread(fs, fatsector)< 0)
                 {
                   /* Read error */
-
                   break;
                 }
 
-              /* Get the LS byte first handling the 12-bit alignment within
+              /* Output the LS byte first handling the 12-bit alignment within
                * the 16-bits
                */
 
               fatindex = fatoffset & SEC_NDXMASK(fs);
               if ((clusterno & 1) != 0)
                 {
-                  /* Save the LS four bits of the next cluster */
-
-                  value = (fs->fs_buffer[fatindex] & 0x0f) | nextcluster << 4;
+                  value = (fs->fs_buffer[fatindex] & 0x0f) | startsector << 4;
                 }
               else
                 {
-                  /* Save the LS eight bits of the next cluster */
-
-                  value = (ubyte)nextcluster;
+                  value = (ubyte)startsector;
                 }
               fs->fs_buffer[fatindex] = value;
 
@@ -1080,15 +1064,11 @@ int fat_putcluster(struct fat_mountpt_s *fs, uint32 clusterno, size_t nextcluste
 
               if ((clusterno & 1) != 0)
                 {
-                  /* Save the MS eight bits of the next cluster */
-
-                  value = (ubyte)(nextcluster >> 4);
+                  value = (ubyte)(startsector >> 4);
                 }
               else
                 {
-                  /* Save the MS four bits of the next cluster */
-
-                  value = (fs->fs_buffer[fatindex] & 0xf0) | ((nextcluster >> 8) & 0x0f);
+                  value = (fs->fs_buffer[fatindex] & 0xf0) | (startsector & 0x0f);
                 }
               fs->fs_buffer[fatindex] = value;
             }
@@ -1105,7 +1085,7 @@ int fat_putcluster(struct fat_mountpt_s *fs, uint32 clusterno, size_t nextcluste
                   /* Read error */
                   break;
                 }
-              FAT_PUTFAT16(fs->fs_buffer, fatindex, nextcluster & 0xffff);
+              FAT_PUTFAT16(fs->fs_buffer, fatindex, startsector & 0xffff);
             }
           break;
 
@@ -1120,7 +1100,7 @@ int fat_putcluster(struct fat_mountpt_s *fs, uint32 clusterno, size_t nextcluste
                   /* Read error */
                   break;
                 }
-              FAT_PUTFAT32(fs->fs_buffer, fatindex, nextcluster & 0x0fffffff);
+              FAT_PUTFAT32(fs->fs_buffer, fatindex, startsector & 0x0fffffff);
             }
           break;
 
@@ -1228,19 +1208,16 @@ sint32 fat_extendchain(struct fat_mountpt_s *fs, uint32 cluster)
       if (startsector < 0)
         {
           /* An error occurred, return the error value */
-
           return startsector;
         }
       else if (startsector < 2)
         {
-
           /* Oops.. this cluster does not exist. */
           return 0;
         }
       else if (startsector < fs->fs_nclusters)
         {
           /* It is already followed by next cluster */
-
           return startsector;
         }
 
@@ -2137,14 +2114,14 @@ int fat_fscacheflush(struct fat_mountpt_s *fs)
 
       /* Does the sector lie in the FAT region? */
 
-      if (fs->fs_currentsector < fs->fs_fatbase + fs->fs_nfatsects)
+      if (fs->fs_currentsector < fs->fs_fatbase + fs->fs_fatsize)
       {
           /* Yes, then make the change in the FAT copy as well */
           int i;
 
           for (i = fs->fs_fatnumfats; i >= 2; i--)
           { 
-              fs->fs_currentsector += fs->fs_nfatsects;
+              fs->fs_currentsector += fs->fs_fatsize;
               ret = fat_hwwrite(fs, fs->fs_buffer, fs->fs_currentsector, 1);
               if (ret < 0)
               {
@@ -2220,21 +2197,20 @@ int fat_ffcacheflush(struct fat_mountpt_s *fs, struct fat_file_s *ff)
    * contents of ff_buffer.
    */
 
-  if (ff->ff_cachesector &&
-      ff->ff_bflags && (FFBUFF_DIRTY|FFBUFF_VALID) == (FFBUFF_DIRTY|FFBUFF_VALID))
-    {
+  if (ff->ff_bflags && (FFBUFF_DIRTY|FFBUFF_VALID) == (FFBUFF_DIRTY|FFBUFF_VALID))
+  {
       /* Write the dirty sector */
 
-      ret = fat_hwwrite(fs, ff->ff_buffer, ff->ff_cachesector, 1);
+      ret = fat_hwwrite(fs, ff->ff_buffer, ff->ff_currentsector, 1);
       if (ret < 0)
-        {
+      {
           return ret;
-        }
+      }
 
-      /* No longer dirty, but still valid */
+      /* No longer dirty */
 
       ff->ff_bflags &= ~FFBUFF_DIRTY;
-    }
+  }
 
   return OK;
 }
@@ -2251,12 +2227,12 @@ int fat_ffcacheread(struct fat_mountpt_s *fs, struct fat_file_s *ff, size_t sect
 {
   int ret;
 
-  /* ff->ff_cachesector holds the current sector that is buffered in
+  /* ff->ff_currentsector holds the current sector that is buffered in
    * ff->ff_buffer. If the requested sector is the same as this sector, then
    * we do nothing. Otherwise, we will have to read the new sector.
    */
 
-  if (ff->ff_cachesector != sector || (ff->ff_bflags & FFBUFF_VALID) == 0)
+  if (ff->ff_currentsector != sector || (ff->ff_bflags & FFBUFF_VALID) == 0)
       {
         /* We will need to read the new sector.  First, flush the cached
          * sector if it is dirty.
@@ -2278,7 +2254,7 @@ int fat_ffcacheread(struct fat_mountpt_s *fs, struct fat_file_s *ff, size_t sect
 
         /* Update the cached sector number */
 
-        ff->ff_cachesector = sector;
+        ff->ff_currentsector = sector;
         ff->ff_bflags |= FFBUFF_VALID;
     }
     return OK;
@@ -2309,8 +2285,7 @@ int fat_ffcacheinvalidate(struct fat_mountpt_s *fs, struct fat_file_s *ff)
 
         /* Then discard the current cache contents */
 
-        ff->ff_bflags     &= ~FFBUFF_VALID;
-        ff->ff_cachesector = 0;
+        ff->ff_bflags &= ~FFBUFF_VALID;
     }
     return OK;
 }
@@ -2347,7 +2322,7 @@ int fat_updatefsinfo(struct fat_mountpt_s *fs)
           FSI_PUTSTRUCTSIG(fs->fs_buffer, 0x61417272);
           FSI_PUTFREECOUNT(fs->fs_buffer, fs->fs_fsifreecount);
           FSI_PUTNXTFREE(fs->fs_buffer, fs->fs_fsinextfree);
-          FSI_PUTTRAILSIG(fs->fs_buffer, BOOT_SIGNATURE32);
+          FSI_PUTTRAILSIG(fs->fs_buffer, 0xaa550000);
 
           /* Then flush this to disk */
 
@@ -2467,48 +2442,4 @@ int fat_nfreeclusters(struct fat_mountpt_s *fs, size_t *pfreeclusters)
     *pfreeclusters = nfreeclusters;
     return OK;
 }
-
-/****************************************************************************
- * Name: fat_nfreeclusters
- *
- * Desciption:
- *   Given the file position, set the correct current sector to access.
- *
- ****************************************************************************/
-
-int fat_currentsector(struct fat_mountpt_s *fs, struct fat_file_s *ff,
-                      off_t position)
-{
-  int sectoroffset;
-
-  if (position <= ff->ff_size )
-    {
-      /* sectoroffset is the sector number offset into the current cluster */
-
-      sectoroffset = SEC_NSECTORS(fs, position) & CLUS_NDXMASK(fs);
-
-      /* The current cluster is the the first sector of the cluster plus
-       * the sector offset
-        */
-
-      ff->ff_currentsector = fat_cluster2sector(fs, ff->ff_currentcluster)
-                           + sectoroffset;
-
-      /* The remainder is the number of sectors left in the cluster to be
-       * read/written
-       */
-
-      ff->ff_sectorsincluster = fs->fs_fatsecperclus - sectoroffset;
-
-      fvdbg("position=%d currentsector=%d sectorsincluster=%d\n",
-            position, ff->ff_currentsector, ff->ff_sectorsincluster);
-
-      return OK;
-    }
-
-  /* The position does not lie within the file */
-
-  return -ENOSPC;
-}
-
 

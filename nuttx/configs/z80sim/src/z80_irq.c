@@ -1,7 +1,7 @@
 /****************************************************************************
- * board/z80_irq.c
+ * z80/z80_irq.c
  *
- *   Copyright (C) 2007, 2008 Gregory Nutt. All rights reserved.
+ *   Copyright (C) 2007 Gregory Nutt. All rights reserved.
  *   Author: Gregory Nutt <spudmonkey@racsa.co.cr>
  *
  * Redistribution and use in source and binary forms, with or without
@@ -14,7 +14,7 @@
  *    notice, this list of conditions and the following disclaimer in
  *    the documentation and/or other materials provided with the
  *    distribution.
- * 3. Neither the name NuttX nor the names of its contributors may be
+ * 3. Neither the name Gregory Nutt nor the names of its contributors may be
  *    used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -38,10 +38,8 @@
  ****************************************************************************/
 
 #include <nuttx/config.h>
-
 #include <sys/types.h>
 #include <nuttx/irq.h>
-
 #include "up_arch.h"
 #include "os_internal.h"
 #include "up_internal.h"
@@ -54,6 +52,8 @@
  * Public Data
  ****************************************************************************/
 
+uint32 *current_regs;
+
 /****************************************************************************
  * Private Data
  ****************************************************************************/
@@ -63,7 +63,7 @@
  ****************************************************************************/
 
 /****************************************************************************
- * Public Functions
+ * Public Funtions
  ****************************************************************************/
 
 /****************************************************************************
@@ -72,21 +72,14 @@
 
 void up_irqinitialize(void)
 {
-  /* Attach the timer interrupt -- There is not special timer interrupt
-   * enable in the simulation so it must be enabled here before interrupts
-   * are enabled.
-   *
-   * NOTE:  Normally, there are seperate enables for "global" interrupts
-   * and specific device interrupts.  In such a "normal" case, the timer
-   * interrupt should be attached and enabled in the the function up_timerinit()
-   */
+  /* currents_regs is non-NULL only while processing an interrupt */
 
-  irq_attach(Z80_IRQ_SYSTIMER, (xcpt_t)up_timerisr);
+  current_regs = NULL;
 
-  /* And finally, enable interrupts (including the timer) */
+  /* And finally, enable interrupts */
 
 #ifndef CONFIG_SUPPRESS_INTERRUPTS
-  irqrestore(Z80_C_FLAG);
+  irqrestore(TRUE);
 #endif
 }
 
@@ -100,7 +93,7 @@ void up_irqinitialize(void)
 
 void up_disable_irq(int irq)
 {
-  irqrestore(0);
+  irqrestore(FALSE);
 }
 
 /****************************************************************************
